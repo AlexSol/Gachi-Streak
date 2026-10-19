@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -145,6 +146,9 @@ func cmdUser(args []string) error {
 			Name: *name, Timezone: *tz, GitHubLogin: *gh, GitHubRepo: *repo,
 		}, time.Now())
 		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "unique") {
+				return fmt.Errorf("user %q already exists — to get a new token run: gachi-server user token -name %s", *name, *name)
+			}
 			return err
 		}
 		fmt.Printf("user %q created (tz %s, accountable from %s)\n", u.Name, u.Timezone, u.CreatedDay)

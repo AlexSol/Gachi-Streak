@@ -46,6 +46,9 @@ type app struct {
 	gitItem    *systray.MenuItem
 	demoItem   *systray.MenuItem
 	localGit   client.LocalGit
+	desk       *winapi.Desktop
+	cfgErr     error     // non-nil → not configured, server is not polled
+	cfgMod     time.Time // config.json mtime, for auto-reload
 }
 
 func main() {
@@ -62,38 +65,21 @@ func main() {
 	}
 	setupLog(dataDir)
 
-	cfgPath := filepath.Join(dataDir, "config.json")
-	cfg, err := client.LoadConfig(cfgPath, dataDir)
-	if errors.Is(err, client.ErrConfigCreated) {
-		winapi.MessageBox(title, fmt.Sprintf(
-			"Створено конфіг:\n%s\n\nВпиши server_url і token (видає `gachi-server user add`), збережи і запусти програму ще раз.\n\nКартинки клади в папки images\\warning та images\\failed поруч із конфігом.",
-			cfgPath), winapi.MBInfo)
-		_ = winapi.Open(cfgPath)
-		return
-	}
-	if err == nil {
-		err = cfg.Validate()
-	}
-	if err != nil {
-		winapi.MessageBox(title, "Проблема з конфігом "+cfgPath+":\n\n"+err.Error(), winapi.MBError)
-		_ = winapi.Open(cfgPath)
-		return
-	}
-
-	installAssets(cfg, dataDir)
-
-	desk := &winapi.Desktop{DataDir: dataDir, Managed: []string{cfg.WarningImagesDir, cfg.FailedImagesDir}}
 	a := &app{
-		cfg:     cfg,
-		cfgPath: cfgPath,
+		cfgPath: filepath.Join(dataDir, "config.json"),
 		dataDir: dataDir,
-		api:     client.NewAPIClient(cfg),
-		engine:  client.NewEngine(cfg, desk, dataDir),
 		refresh: make(chan struct{}, 1),
-		localGit: client.LocalGit{
-			Repos:   cfg.LocalRepos,
-			Authors: cfg.LocalAuthorEmails,
-		},
+	}
+	created := a.loadConfig()
+	switch {
+	case created:
+		_ = winapi.Open(a.cfgPath)
+		go winapi.MessageBox(title, fmt.Sprintf(
+			"Створено конфіг:\n%s\n\nВпиши server_url і token (видає `gachi-server user add`) і збережи файл — програма підхопить зміни сама, перезапуск не потрібен.\n\nПоки що працює демо-режим у меню трею.",
+			a.cfgPath), winapi.MBInfo)
+	case a.cfgErr != nil:
+		go winapi.MessageBox(title, "Проблема з конфігом "+a.cfgPath+":\n\n"+a.cfgErr.Error()+
+			"\n\nПрограма працює в треї. Виправ конфіг і збережи — зміни підхопляться автоматично.", winapi.MBWarning)
 	}
 	systray.Run(a.onReady, func() { log.Println("exit") })
 }
@@ -113,11 +99,7 @@ func (a *app) onReady() {
 	}
 	a.gitItem = systray.AddMenuItem("", "Локальні репозиторії з config.json → local_repos")
 	a.gitItem.Disable()
-	if len(a.localGit.Repos) == 0 {
-		a.gitItem.Hide()
-	} else {
-		a.gitItem.SetTitle(fmt.Sprintf("📁 Відстежую локальних репо: %d", len(a.localGit.Repos)))
-	}
+	a.updateGitItem()
 	systray.AddSeparator()
 	a.pingItem = systray.AddMenuItem("✅ Я сьогодні вчив Go (відмітити)", "POST /ping")
 	refreshItem := systray.AddMenuItem("🔄 Оновити", "")
@@ -133,7 +115,8 @@ func (a *app) onReady() {
 	demoStop := a.demoItem.AddSubMenuItem("⏹ Вимкнути демо", "Повернути шпалери і реальний стан із сервера")
 	systray.AddSeparator()
 	imagesItem := systray.AddMenuItem("📂 Папка з картинками", "")
-	configItem := systray.AddMenuItem("⚙️ Відкрити конфіг", "Після змін перезапусти програму")
+	configItem := systray.AddMenuItem("⚙️ Відкрити конфіг", "Зміни підхоплюються автоматично після збереження")
+	reloadItem := systray.AddMenuItem("♻️ Перечитати конфіг", "")
 	a.autoItem = systray.AddMenuItemCheckbox("Запускати з Windows", "", winapi.AutostartEnabled(appName))
 	systray.AddSeparator()
 	quitItem := systray.AddMenuItem("Вихід", "Шпалери-покарання НЕ знімаються при виході 😈")
@@ -164,6 +147,8 @@ func (a *app) onReady() {
 				_ = winapi.Open(filepath.Dir(a.cfg.FailedImagesDir))
 			case <-configItem.ClickedCh:
 				_ = winapi.Open(a.cfgPath)
+			case <-reloadItem.ClickedCh:
+				go func() { a.reload(true); a.kick() }()
 			case <-a.autoItem.ClickedCh:
 				on := !a.autoItem.Checked()
 				if err := winapi.SetAutostart(appName, on); err != nil {
@@ -191,20 +176,101 @@ func (a *app) kick() {
 }
 
 func (a *app) loop() {
-	t := time.NewTicker(a.cfg.PollInterval())
-	defer t.Stop()
 	for {
+		a.reload(false)
 		a.poll()
+		wait := a.cfg.PollInterval()
+		if a.cfgErr != nil {
+			wait = 5 * time.Second // react quickly once the config is fixed
+		}
 		select {
-		case <-t.C:
+		case <-time.After(wait):
 		case <-a.refresh:
 		}
+	}
+}
+
+// loadConfig (re)reads config.json. Never fatal: problems end up in cfgErr
+// and are shown in the tray. Returns true if a template was just created.
+func (a *app) loadConfig() (created bool) {
+	cfg, err := client.LoadConfig(a.cfgPath, a.dataDir)
+	created = errors.Is(err, client.ErrConfigCreated)
+	if created {
+		err = nil
+	}
+	if st, e := os.Stat(a.cfgPath); e == nil {
+		a.cfgMod = st.ModTime()
+	}
+	if err != nil { // unreadable or broken JSON: keep the previous settings
+		log.Println("config:", err)
+		a.cfgErr = err
+		if a.engine == nil {
+			a.useConfig(client.DefaultConfig(a.dataDir))
+		}
+		return created
+	}
+	a.cfgErr = cfg.Validate()
+	a.useConfig(cfg)
+	return created
+}
+
+func (a *app) useConfig(cfg client.Config) {
+	a.cfg = cfg
+	a.api = client.NewAPIClient(cfg)
+	a.localGit = client.LocalGit{Repos: cfg.LocalRepos, Authors: cfg.LocalAuthorEmails}
+	if a.engine == nil {
+		a.desk = &winapi.Desktop{DataDir: a.dataDir}
+		a.engine = client.NewEngine(cfg, a.desk, a.dataDir)
+	} else {
+		a.engine.Cfg = cfg
+	}
+	a.desk.Managed = []string{cfg.WarningImagesDir, cfg.FailedImagesDir}
+	installAssets(cfg, a.dataDir)
+}
+
+// reload re-reads the config if the file changed (or always, if force).
+func (a *app) reload(force bool) {
+	st, err := os.Stat(a.cfgPath)
+	if !force && (err != nil || st.ModTime().Equal(a.cfgMod)) {
+		return
+	}
+	a.mu.Lock()
+	a.loadConfig()
+	a.mu.Unlock()
+	log.Println("config reloaded, error:", a.cfgErr)
+	a.updateGitItem()
+}
+
+func (a *app) updateGitItem() {
+	if a.gitItem == nil {
+		return
+	}
+	if len(a.localGit.Repos) == 0 {
+		a.gitItem.Hide()
+		return
+	}
+	a.gitItem.SetTitle(fmt.Sprintf("📁 Відстежую локальних репо: %d", len(a.localGit.Repos)))
+	a.gitItem.Show()
+}
+
+func (a *app) showConfigProblem() {
+	if a.engine.Demo == "" {
+		systray.SetIcon(client.StateIcon("offline"))
+	}
+	systray.SetTooltip(title + ": потрібно налаштувати конфіг")
+	a.statusItem.SetTitle("⚙️ Конфіг: " + shorten(a.cfgErr.Error(), 70))
+	for _, it := range a.userItems {
+		it.Hide()
 	}
 }
 
 func (a *app) poll() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.cfgErr != nil {
+		a.showConfigProblem()
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -291,6 +357,10 @@ func (a *app) render(st api.StatusResponse) {
 }
 
 func (a *app) ping() {
+	if a.cfgErr != nil {
+		winapi.MessageBox(title, "Спочатку налаштуй конфіг ("+a.cfgPath+"):\n\n"+a.cfgErr.Error(), winapi.MBWarning)
+		return
+	}
 	a.mu.Lock()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	resp, err := a.api.Ping(ctx, "manual", "tray")
