@@ -15,6 +15,7 @@ var (
 	procCallWindowProcW           = user32.NewProc("CallWindowProcW")
 	procSetWindowPos              = user32.NewProc("SetWindowPos")
 	procGetWindowRect             = user32.NewProc("GetWindowRect")
+	procGetCursorPos              = user32.NewProc("GetCursorPos")
 	procReleaseCapture            = user32.NewProc("ReleaseCapture")
 	procSendMessageW              = user32.NewProc("SendMessageW")
 	procShowWindow                = user32.NewProc("ShowWindow")
@@ -52,6 +53,7 @@ const (
 
 	wmWindowPosChanging = 0x0046
 	wmMoving            = 0x0216
+	wmEnterSizeMove     = 0x0231
 	wmExitSizeMove      = 0x0232
 	wmNCLButtonDown     = 0x00A1
 	htCaption           = 2
@@ -84,6 +86,11 @@ type subclass struct {
 	mode    WidgetMode
 	snap    int32 // edge-snapping distance in px, 0 = off
 	onMoved func(Rect)
+
+	// drag start, so snapping works on the unsnapped position
+	dragging    bool
+	startRect   Rect
+	startCursor Point
 }
 
 var (
@@ -108,14 +115,22 @@ func widgetWndProc(hwnd, msg, wp, lp uintptr) uintptr {
 			pos.hwndInsertAfter = hwndBottom
 			pos.flags &^= swpNoZOrder
 		}
+	case wmEnterSizeMove:
+		s.startRect = WindowRect(hwnd)
+		s.startCursor = cursorPos()
+		s.dragging = true
 	case wmMoving:
-		if s.snap > 0 {
-			// lp is a *RECT with the proposed position, owned by Windows for this call
+		if s.snap > 0 && s.dragging {
+			// Windows proposes "previous position + mouse delta"; after a snap
+			// that would keep it stuck forever. Snap the unsnapped position instead.
+			// lp is a *RECT owned by Windows for the duration of this call.
 			r := *(**Rect)(unsafe.Pointer(&lp))
-			area := WorkArea((r.Left+r.Right)/2, (r.Top+r.Bottom)/2)
-			*r = SnapRect(*r, area, s.snap)
+			raw := DragRect(s.startRect, s.startCursor, cursorPos())
+			area := WorkArea((raw.Left+raw.Right)/2, (raw.Top+raw.Bottom)/2)
+			*r = SnapRect(raw, area, s.snap)
 		}
 	case wmExitSizeMove:
+		s.dragging = false
 		if s.onMoved != nil {
 			s.onMoved(WindowRect(hwnd))
 		}
@@ -162,6 +177,12 @@ func WorkArea(x, y int32) Rect {
 		return Rect{0, 0, 1920, 1080}
 	}
 	return mi.rcWork
+}
+
+func cursorPos() Point {
+	var p Point
+	procGetCursorPos.Call(uintptr(unsafe.Pointer(&p)))
+	return p
 }
 
 // WindowRect returns the window rectangle in screen coordinates.

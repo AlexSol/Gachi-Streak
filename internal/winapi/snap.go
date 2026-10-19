@@ -29,3 +29,15 @@ func SnapRect(r, area Rect, dist int32) Rect {
 	r.Right, r.Bottom = r.Left+w, r.Top+h
 	return r
 }
+
+// Point is a screen point in physical pixels.
+type Point struct{ X, Y int32 }
+
+// DragRect is where the window would be without any snapping: its rect at
+// the start of the drag shifted by how far the cursor has moved since.
+// Snapping must be applied to this, not to the previous (already snapped)
+// position — otherwise a snapped window can never be pulled away again.
+func DragRect(start Rect, startCursor, cursor Point) Rect {
+	dx, dy := cursor.X-startCursor.X, cursor.Y-startCursor.Y
+	return Rect{start.Left + dx, start.Top + dy, start.Right + dx, start.Bottom + dy}
+}
