@@ -24,6 +24,10 @@ type Server struct {
 	Log   *slog.Logger
 	Now   func() time.Time
 
+	// Repositories over the Store's tables.
+	Achievements AchievementRepository
+	Code         CodeRepository
+
 	// UI serves the single-page app under /app/ (nil = not mounted).
 	UI http.Handler
 
@@ -33,7 +37,11 @@ type Server struct {
 
 // New creates a server with sane defaults.
 func New(st *store.Store, warn time.Duration, log *slog.Logger) *Server {
-	return &Server{Store: st, Warn: warn, Log: log, Now: time.Now}
+	return &Server{
+		Store: st, Warn: warn, Log: log, Now: time.Now,
+		Achievements: st.Achievements(),
+		Code:         st.Code(),
+	}
 }
 
 type ctxKey struct{}
@@ -50,6 +58,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /presence", s.auth(http.HandlerFunc(s.handlePresence)))
 	mux.Handle("GET /activity", s.auth(http.HandlerFunc(s.handleActivity)))
 	mux.Handle("GET /progress", s.auth(http.HandlerFunc(s.handleProgress)))
+	mux.Handle("POST /achievements/seen", s.auth(http.HandlerFunc(s.handleAchievementsSeen)))
 
 	// Browser sessions: an invite token is exchanged for an HttpOnly cookie.
 	mux.HandleFunc("POST /auth/login", s.handleLogin)

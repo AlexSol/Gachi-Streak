@@ -5,6 +5,7 @@
 //	gachi-server user list
 //	gachi-server user token  -name alex          (issue a new token)
 //	gachi-server user github -name alex -github AlexSol [-repo ...]
+//	gachi-server dev ...                          (only in -tags dev builds, see dev.go)
 package main
 
 import (
@@ -38,6 +39,12 @@ func main() {
 		err = cmdServe(os.Args[2:])
 	case "user":
 		err = cmdUser(os.Args[2:])
+	case "dev":
+		if cmdDev == nil {
+			err = errors.New("dev commands are not in this build; run them locally: go run -tags dev ./cmd/server dev ...")
+		} else {
+			err = cmdDev(os.Args[2:])
+		}
 	default:
 		usage()
 		os.Exit(2)
@@ -47,6 +54,10 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// cmdDev is set by dev.go, which only exists in -tags dev builds, so
+// release binaries (Dockerfile, make server*) can't run dev commands.
+var cmdDev func(args []string) error
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:

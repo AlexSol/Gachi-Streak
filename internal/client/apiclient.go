@@ -42,6 +42,17 @@ func (c *APIClient) Ping(ctx context.Context, source, note string) (api.PingResp
 	return out, c.do(ctx, http.MethodPost, "/ping", body, &out)
 }
 
+// Progress calls GET /progress.
+func (c *APIClient) Progress(ctx context.Context) (api.ProgressResponse, error) {
+	var out api.ProgressResponse
+	return out, c.do(ctx, http.MethodGet, "/progress", nil, &out)
+}
+
+// AchievementsSeen calls POST /achievements/seen.
+func (c *APIClient) AchievementsSeen(ctx context.Context) error {
+	return c.do(ctx, http.MethodPost, "/achievements/seen", nil, nil)
+}
+
 // Presence calls POST /presence with the current program and today's totals.
 func (c *APIClient) Presence(ctx context.Context, r api.PresenceRequest) error {
 	body, _ := json.Marshal(r)

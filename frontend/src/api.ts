@@ -76,7 +76,8 @@ export interface AchievementDef {
   category: AchCategory;
   xp: number;
   target: number;
-  detector: "auto" | "diff";
+  /** "code" = Go constructs found in commits pushed to GitHub. */
+  detector: "auto" | "code";
   rule: string;
   secret?: boolean;
 }
@@ -87,6 +88,8 @@ export interface AchievementState {
   day?: string;
   progress: number;
   target: number;
+  /** My own unlock I have not been notified about yet. */
+  new?: boolean;
 }
 
 export interface UserProgress {
@@ -98,6 +101,8 @@ export interface UserProgress {
   rank: number;
   next_rank_xp?: number;
   active_days: number;
+  /** Pushes are analyzed (GitHub login set): "code" achievements can unlock. */
+  code_tracking: boolean;
   failures: number;
   achievements: AchievementState[];
 }
@@ -136,6 +141,7 @@ export const api = {
   logout: () => call<void>("POST", "/auth/logout"),
   status: () => call<StatusResponse>("GET", "/status"),
   progress: () => call<ProgressResponse>("GET", "/progress"),
+  achievementsSeen: () => call<void>("POST", "/achievements/seen"),
   activity: (days = 7) => call<ActivityResponse>("GET", `/activity?days=${days}`),
   ping: (note: string) =>
     call<{ counted: boolean; user: UserStatus }>("POST", "/ping", { source: "manual", note }),

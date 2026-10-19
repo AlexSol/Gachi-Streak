@@ -364,3 +364,122 @@ func TestProgress(t *testing.T) {
 		t.Fatalf("sasha %+v", s)
 	}
 }
+
+func TestGitHubCodeAchievements(t *testing.T) {
+	f := setup(t)
+	f.now = time.Date(2026, 10, 19, 15, 0, 0, 0, time.UTC)
+	const src = "package x\n\nimport \"fmt\"\n\nfunc a(err error) error {\n\tgo a(nil)\n\treturn fmt.Errorf(\"a: %w\", err)\n}\n"
+	var hits = map[string]int{}
+	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits[r.URL.Path]++
+		switch r.URL.Path {
+		case "/users/sasha-gh/events":
+			if r.Header.Get("If-None-Match") == `"v1"` {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			w.Header().Set("ETag", `"v1"`)
+			w.Write([]byte(`[
+				{"type":"PushEvent","created_at":"2026-10-19T12:00:00Z","repo":{"name":"sasha-gh/go-diary"},
+				 "payload":{"before":"aaa","head":"bbb"}},
+				{"type":"PushEvent","created_at":"2026-10-18T12:00:00Z","repo":{"name":"sasha-gh/go-diary"},
+				 "payload":{"before":"0000000000","head":"gone"}}
+			]`))
+		case "/repos/sasha-gh/go-diary/compare/aaa...bbb":
+			w.Write([]byte(`{"files":[
+				{"filename":"x.go","status":"modified","patch":"@@ -5,2 +5,4 @@\n func a(err error) error {\n+\tgo a(nil)\n+\treturn fmt.Errorf(\"a: %w\", err)\n }"},
+				{"filename":"README.md","status":"modified","patch":"@@ -1 +1 @@\n+go func() {}"},
+				{"filename":"old.go","status":"removed","patch":"@@ -1 +0,0 @@\n-package x"}
+			]}`))
+		case "/repos/sasha-gh/go-diary/contents/x.go":
+			if r.URL.Query().Get("ref") != "bbb" {
+				t.Errorf("contents ref %q", r.URL.RawQuery)
+			}
+			w.Write([]byte(src))
+		default: // commits/gone: force-pushed away
+			http.NotFound(w, r)
+		}
+	}))
+	defer gh.Close()
+
+	c := &GitHubChecker{S: f.srv, BaseURL: gh.URL}
+	c.CheckAll(context.Background())
+	c.CheckAll(context.Background()) // second pass: 304 and nothing rescanned
+
+	if hits["/repos/sasha-gh/go-diary/compare/aaa...bbb"] != 1 || hits["/repos/sasha-gh/go-diary/commits/gone"] != 1 {
+		t.Fatalf("each push must be fetched once: %v", hits)
+	}
+	if hits["/repos/sasha-gh/go-diary/contents/README.md"] != 0 {
+		t.Fatalf("non-Go files fetched: %v", hits)
+	}
+
+	var resp api.ProgressResponse
+	if code := f.do(t, "GET", "/progress", f.sasha, "", &resp); code != 200 {
+		t.Fatalf("progress %d", code)
+	}
+	var sasha api.UserProgress
+	for _, u := range resp.Users {
+		if u.Name == "sasha" {
+			sasha = u
+		} else if u.CodeTracking {
+			t.Fatalf("%s has no github login", u.Name)
+		}
+	}
+	st := map[string]api.AchievementState{}
+	for _, a := range sasha.Achievements {
+		st[a.ID] = a
+	}
+	if g := st["goroutine"]; !g.Unlocked || g.Day != "2026-10-19" || !g.New {
+		t.Fatalf("goroutine %+v", g)
+	}
+	if e := st["errwrap"]; e.Unlocked || e.Progress != 1 {
+		t.Fatalf("errwrap %+v", e)
+	}
+	if !sasha.CodeTracking {
+		t.Fatal("sasha code tracking")
+	}
+}
+
+func TestAchievementsPersistAndSeen(t *testing.T) {
+	f := setup(t)
+	start := f.now
+	for i := range 7 {
+		f.now = start.AddDate(0, 0, i)
+		f.do(t, "POST", "/ping", f.alex, "", nil)
+	}
+	f.srv.CheckDeadlines(context.Background()) // the worker stores the unlock
+
+	ctx := context.Background()
+	users, _ := f.srv.Store.ListUsers(ctx)
+	alexID := users[0].ID
+	unlocks, err := f.srv.Achievements.ListByUser(ctx, alexID)
+	if err != nil || len(unlocks) != 1 || unlocks[0].AchievementID != "streak_7" || unlocks[0].Day != "2026-10-25" {
+		t.Fatalf("unlocks %+v %v", unlocks, err)
+	}
+
+	get := func(token string) map[string]api.AchievementState {
+		var resp api.ProgressResponse
+		f.do(t, "GET", "/progress", token, "", &resp)
+		out := map[string]api.AchievementState{}
+		for _, u := range resp.Users {
+			if u.Name == "alex" {
+				for _, a := range u.Achievements {
+					out[a.ID] = a
+				}
+			}
+		}
+		return out
+	}
+	if a := get(f.alex)["streak_7"]; !a.Unlocked || !a.New {
+		t.Fatalf("own new unlock %+v", a)
+	}
+	if a := get(f.sasha)["streak_7"]; !a.Unlocked || a.New {
+		t.Fatalf("partner must not see alex's New flag: %+v", a)
+	}
+	if code := f.do(t, "POST", "/achievements/seen", f.alex, "", nil); code != 204 {
+		t.Fatalf("seen %d", code)
+	}
+	if a := get(f.alex)["streak_7"]; !a.Unlocked || a.New {
+		t.Fatalf("after seen %+v", a)
+	}
+}

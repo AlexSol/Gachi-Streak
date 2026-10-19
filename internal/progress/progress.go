@@ -1,6 +1,7 @@
 // Package progress turns a user's activity history into XP, a rank on the
-// ladder and achievements. Everything is derived from history on every
-// request — nothing is stored — so the rules can change without migrations.
+// ladder and achievements. XP and rank are derived from history on every
+// request; achievements are derived too, but once earned they are stored
+// (History.Earned) and stay unlocked even if a rule changes later.
 // No I/O here, so it is fully unit-testable.
 package progress
 
@@ -31,8 +32,8 @@ var Ranks = []api.RankDef{
 }
 
 const (
-	auto = "auto"
-	diff = "diff" // needs commit diff analysis — planned, never unlocks yet
+	auto = "auto" // activity history
+	code = "code" // Go code in pushed commits (internal/codescan)
 )
 
 // Achievements is the catalog. Texts are in the frontend, keyed by ID.
@@ -42,17 +43,17 @@ var Achievements = []api.AchievementDef{
 	{ID: "streak_100", Category: "streak", XP: 300, Target: 100, Detector: auto, Rule: "best_streak >= 100"},
 	{ID: "streak_365", Category: "streak", XP: 1000, Target: 365, Detector: auto, Rule: "best_streak >= 365"},
 
-	{ID: "goroutine", Category: "go", XP: 40, Target: 1, Detector: diff, Rule: `diff: go func(`},
-	{ID: "channel", Category: "go", XP: 40, Target: 1, Detector: diff, Rule: `diff: make(chan`},
-	{ID: "select", Category: "go", XP: 50, Target: 1, Detector: diff, Rule: `AST: SelectStmt, >= 2 case`},
-	{ID: "context", Category: "go", XP: 60, Target: 1, Detector: diff, Rule: `diff: context.With(Cancel|Timeout|Deadline)`},
-	{ID: "generics", Category: "go", XP: 60, Target: 1, Detector: diff, Rule: `AST: FuncType.TypeParams != nil`},
-	{ID: "errwrap", Category: "go", XP: 40, Target: 5, Detector: diff, Rule: `diff: fmt.Errorf("…%w") ×5`},
+	{ID: "goroutine", Category: "go", XP: 40, Target: 1, Detector: code, Rule: `AST: go statement`},
+	{ID: "channel", Category: "go", XP: 40, Target: 1, Detector: code, Rule: `AST: make(chan T)`},
+	{ID: "select", Category: "go", XP: 50, Target: 1, Detector: code, Rule: `AST: SelectStmt, >= 2 case`},
+	{ID: "context", Category: "go", XP: 60, Target: 1, Detector: code, Rule: `AST: context.With(Cancel|Timeout|Deadline)`},
+	{ID: "generics", Category: "go", XP: 60, Target: 1, Detector: code, Rule: `AST: FuncType.TypeParams != nil`},
+	{ID: "errwrap", Category: "go", XP: 40, Target: 5, Detector: code, Rule: `AST: fmt.Errorf("…%w") ×5`},
 
-	{ID: "first_test", Category: "tests", XP: 40, Target: 1, Detector: diff, Rule: `*_test.go + func Test`},
-	{ID: "benchmark", Category: "tests", XP: 60, Target: 1, Detector: diff, Rule: `diff: func Benchmark…(b *testing.B)`},
-	{ID: "table_test", Category: "tests", XP: 50, Target: 1, Detector: diff, Rule: `diff: []struct{…} + t.Run(`},
-	{ID: "fuzz", Category: "tests", XP: 80, Target: 1, Detector: diff, Rule: `diff: func Fuzz…(f *testing.F)`},
+	{ID: "first_test", Category: "tests", XP: 40, Target: 1, Detector: code, Rule: `*_test.go: func TestXxx(t *testing.T)`},
+	{ID: "benchmark", Category: "tests", XP: 60, Target: 1, Detector: code, Rule: `func BenchmarkXxx(b *testing.B)`},
+	{ID: "table_test", Category: "tests", XP: 50, Target: 1, Detector: code, Rule: `[]struct{…} + t.Run(name, func…)`},
+	{ID: "fuzz", Category: "tests", XP: 80, Target: 1, Detector: code, Rule: `func FuzzXxx(f *testing.F)`},
 
 	{ID: "duo_7", Category: "duo", XP: 50, Target: 7, Detector: auto, Rule: "both active, 7 days in a row"},
 	{ID: "duo_30", Category: "duo", XP: 120, Target: 30, Detector: auto, Rule: "30 days when both were active"},
@@ -62,7 +63,7 @@ var Achievements = []api.AchievementDef{
 	{ID: "comeback", Category: "shame", XP: 40, Target: 7, Detector: auto, Rule: "7-day streak after a failure"},
 
 	{ID: "night_owl", Category: "secret", XP: 30, Target: 1, Detector: auto, Rule: "activity at 02:00–04:59", Secret: true},
-	{ID: "nil_map", Category: "secret", XP: 50, Target: 1, Detector: diff, Rule: "hidden", Secret: true},
+	{ID: "nil_map", Category: "secret", XP: 50, Target: 1, Detector: code, Rule: "var m map[K]V; m[k] = v", Secret: true},
 }
 
 // History is everything progress is derived from, in the user's time zone.
@@ -70,10 +71,24 @@ type History struct {
 	Days     []string    // distinct counted days, any order
 	Times    []time.Time // local time of every activity
 	Failures []string    // missed days, any order
+	Code     []Finding   // constructs found in pushed code
+	// Earned are achievements already stored as unlocked: ID → day.
+	// They stay unlocked whatever the rules say now.
+	Earned map[string]string
+}
+
+// Finding is how many times a code construct (codescan kind, equal to the
+// achievement ID) appeared in code pushed on a day.
+type Finding struct {
+	Kind  string
+	Day   string
+	Count int
 }
 
 func (h History) normalized() History {
-	return History{Days: uniqSorted(h.Days), Times: h.Times, Failures: uniqSorted(h.Failures)}
+	h.Days = uniqSorted(h.Days)
+	h.Failures = uniqSorted(h.Failures)
+	return h
 }
 
 // Compute returns the progress of one user. partner may be nil.
@@ -88,6 +103,9 @@ func Compute(name string, h History, partner *History) api.UserProgress {
 	up := api.UserProgress{Name: name, ActiveDays: len(h.Days), Failures: len(h.Failures)}
 	for _, def := range Achievements {
 		st := evaluate(def, h, p)
+		if day, ok := h.Earned[def.ID]; ok {
+			st.Unlocked, st.Day, st.Progress = true, day, def.Target
+		}
 		if st.Unlocked {
 			up.XPAchievements += def.XP
 		}
@@ -149,7 +167,9 @@ func evaluate(def api.AchievementDef, h History, p *History) api.AchievementStat
 			set(countReach(intersect(h.Days, p.Days), def.Target))
 		}
 	}
-	// "diff" detectors are not implemented yet: they stay locked at 0.
+	if def.Detector == code {
+		set(codeReach(h.Code, def.ID, def.Target))
+	}
 	return st
 }
 
@@ -169,6 +189,23 @@ func runReach(days []string, target int) (best int, reached string) {
 		}
 	}
 	return best, reached
+}
+
+// codeReach sums the findings of one kind and returns the total and the day
+// the running total first reached target ("" if never).
+func codeReach(fs []Finding, kind string, target int) (total int, reached string) {
+	fs = append([]Finding(nil), fs...)
+	sort.SliceStable(fs, func(i, j int) bool { return fs[i].Day < fs[j].Day })
+	for _, f := range fs {
+		if f.Kind != kind {
+			continue
+		}
+		total += f.Count
+		if reached == "" && total >= target {
+			reached = f.Day
+		}
+	}
+	return total, reached
 }
 
 // countReach returns how many days there are and the target-th day.

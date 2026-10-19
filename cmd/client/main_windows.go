@@ -48,6 +48,7 @@ type app struct {
 	demoItem   *systray.MenuItem
 	statsItem  *systray.MenuItem
 	statsRows  []*systray.MenuItem
+	achItem    *systray.MenuItem
 	tracker    *client.Tracker
 	widget     *Widget
 	widgetItem *systray.MenuItem
@@ -58,7 +59,12 @@ type app struct {
 	desk       *winapi.Desktop
 	cfgErr     error     // non-nil → not configured, server is not polled
 	cfgMod     time.Time // config.json mtime, for auto-reload
+	achAt      time.Time // last GET /progress
 }
+
+// achEvery limits GET /progress: unlocks are stored by the server worker
+// once a minute anyway.
+const achEvery = time.Minute
 
 func main() {
 	winapi.EnableDPIAwareness() // crisp widget on scaled displays
@@ -117,6 +123,7 @@ func (a *app) onReady() {
 		it.Hide()
 		a.statsRows = append(a.statsRows, it)
 	}
+	a.achItem = systray.AddMenuItem("🏆 Ачівки", "Відкрити сторінку ачівок у браузері")
 	systray.AddSeparator()
 	a.pingItem = systray.AddMenuItem("✅ Я сьогодні вчив Go (відмітити)", "POST /ping")
 	refreshItem := systray.AddMenuItem("🔄 Оновити", "")
@@ -160,6 +167,8 @@ func (a *app) onReady() {
 				go a.ping()
 			case <-refreshItem.ClickedCh:
 				a.kick()
+			case <-a.achItem.ClickedCh:
+				a.openWebAt("#/achievements")
 			case <-demoWarn.ClickedCh:
 				go a.demo(client.ModeWarning)
 			case <-demoFail.ClickedCh:
@@ -369,6 +378,42 @@ func (a *app) poll() {
 	if _, err := a.engine.Apply(me, time.Now()); err != nil {
 		log.Println("apply:", err)
 	}
+	a.checkAchievements(ctx)
+}
+
+// checkAchievements refreshes the tray counter and announces new unlocks
+// with a Windows notification. Call with a.mu held.
+func (a *app) checkAchievements(ctx context.Context) {
+	if time.Since(a.achAt) < achEvery {
+		return
+	}
+	a.achAt = time.Now()
+	p, err := a.api.Progress(ctx)
+	if err != nil {
+		log.Println("progress:", err)
+		return
+	}
+	n, total := client.AchievementCount(p)
+	a.achItem.SetTitle(fmt.Sprintf("🏆 Ачівки: %d / %d", n, total))
+
+	fresh := client.NewUnlocks(p)
+	if len(fresh) == 0 || !a.cfg.AchievementNotifications {
+		return
+	}
+	title, body := client.UnlockMessage(fresh)
+	log.Printf("achievements unlocked: %s — %s", title, body)
+	// Mark seen first: a broken toast must not repeat every minute.
+	if err := a.api.AchievementsSeen(ctx); err != nil {
+		log.Println("achievements seen:", err)
+		return
+	}
+	url := a.webURL("#/achievements")
+	go func() {
+		if err := winapi.Toast(title, body, url); err != nil {
+			log.Println(err)
+			winapi.MessageBox(title, body, winapi.MBInfo) // fallback
+		}
+	}()
 }
 
 // checkLocalGit pings the server if a local repo has a commit from today.
@@ -627,12 +672,21 @@ func (a *app) saveConfigFields(fields map[string]any) {
 	}
 }
 
-func (a *app) openWeb() {
+func (a *app) openWeb() { a.openWebAt("") }
+
+// openWebAt opens the web app, optionally at a route like "#/achievements".
+func (a *app) openWebAt(route string) {
+	if u := a.webURL(route); u != "" {
+		_ = winapi.Open(u)
+	}
+}
+
+func (a *app) webURL(route string) string {
 	base := strings.TrimRight(a.cfg.ServerURL, "/")
 	if base == "" {
-		return
+		return ""
 	}
-	_ = winapi.Open(base + "/app/")
+	return base + "/app/" + route
 }
 
 func (a *app) snooze() {

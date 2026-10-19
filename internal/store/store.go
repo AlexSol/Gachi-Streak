@@ -166,6 +166,29 @@ CREATE TABLE IF NOT EXISTS presence (
 	idle       INTEGER NOT NULL DEFAULT 0,
 	updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS achievements_unlocked (
+	user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	achievement_id TEXT NOT NULL,
+	day            TEXT NOT NULL,
+	unlocked_at    TEXT NOT NULL,
+	seen_at        TEXT NOT NULL DEFAULT '',
+	PRIMARY KEY (user_id, achievement_id)
+);
+CREATE TABLE IF NOT EXISTS code_scans (
+	user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	ref        TEXT NOT NULL,
+	day        TEXT NOT NULL,
+	scanned_at TEXT NOT NULL,
+	PRIMARY KEY (user_id, ref)
+);
+CREATE TABLE IF NOT EXISTS code_findings (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	ref     TEXT NOT NULL,
+	kind    TEXT NOT NULL,
+	day     TEXT NOT NULL,
+	count   INTEGER NOT NULL,
+	PRIMARY KEY (user_id, ref, kind)
+);
 `
 
 // Times are stored as RFC3339 UTC text: portable across drivers and readable.

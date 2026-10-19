@@ -15,12 +15,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      "/status": api,
-      "/ping": api,
-      "/auth": api,
-      "/activity": api,
-      "/progress": api,
-    },
+    // The server rejects logins whose Origin doesn't match Host (CSRF guard),
+    // so present proxied requests as coming from the API origin itself.
+    proxy: Object.fromEntries(
+      ["/status", "/ping", "/auth", "/activity", "/progress"].map((p) => [
+        p,
+        { target: api, changeOrigin: true, headers: { origin: api } },
+      ]),
+    ),
   },
 });

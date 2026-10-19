@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/AlexSol/gachi-streak/internal/api"
+	"github.com/AlexSol/gachi-streak/internal/codescan"
 	"github.com/AlexSol/gachi-streak/internal/streak"
 )
 
@@ -149,16 +150,57 @@ func TestDuo(t *testing.T) {
 	}
 }
 
-func TestDiffAchievementsStayLocked(t *testing.T) {
+func TestCodeAchievementsNeedFindings(t *testing.T) {
 	up := Compute("alex", History{Days: days("2026-01-01", 400)}, nil)
 	for _, def := range Achievements {
 		st := ach(t, up, def.ID)
-		if def.Detector == diff && st.Unlocked {
-			t.Errorf("%s unlocked without a detector", def.ID)
+		if def.Detector == code && st.Unlocked {
+			t.Errorf("%s unlocked without code findings", def.ID)
 		}
 	}
 	if up.Rank != 7 {
 		t.Fatalf("400 days should be Dungeon Master, got %d (%d XP)", up.Rank, up.XP)
+	}
+}
+
+func TestCodeAchievements(t *testing.T) {
+	h := History{Code: []Finding{
+		{Kind: "errwrap", Day: "2026-10-05", Count: 3},
+		{Kind: "goroutine", Day: "2026-10-02", Count: 1},
+		{Kind: "errwrap", Day: "2026-10-01", Count: 1},
+		{Kind: "errwrap", Day: "2026-10-09", Count: 4},
+	}}
+	up := Compute("alex", h, nil)
+	if g := ach(t, up, "goroutine"); !g.Unlocked || g.Day != "2026-10-02" {
+		t.Fatalf("goroutine %+v", g)
+	}
+	// 1 + 3 = 4 by the 5th, the 5th wrap lands on the 9th.
+	if e := ach(t, up, "errwrap"); !e.Unlocked || e.Day != "2026-10-09" || e.Progress != 5 {
+		t.Fatalf("errwrap %+v", e)
+	}
+	if c := ach(t, up, "channel"); c.Unlocked {
+		t.Fatalf("channel %+v", c)
+	}
+	if up.XPAchievements != 40+40 {
+		t.Fatalf("xp %d", up.XPAchievements)
+	}
+
+	h.Code = h.Code[:3] // 4 wraps only
+	if e := ach(t, Compute("alex", h, nil), "errwrap"); e.Unlocked || e.Progress != 4 {
+		t.Fatalf("errwrap partial %+v", e)
+	}
+}
+
+func TestEarnedStayUnlocked(t *testing.T) {
+	// streak_7 was stored earlier; the history no longer proves it.
+	h := History{Days: days("2026-10-01", 2), Earned: map[string]string{"streak_7": "2026-09-07", "gone": "2026-01-01"}}
+	up := Compute("alex", h, nil)
+	if s := ach(t, up, "streak_7"); !s.Unlocked || s.Day != "2026-09-07" || s.Progress != 7 {
+		t.Fatalf("streak_7 %+v", s)
+	}
+	// Earned IDs missing from the catalog are ignored.
+	if up.XPAchievements != 30 || len(up.Achievements) != len(Achievements) {
+		t.Fatalf("up %+v", up)
 	}
 }
 
@@ -169,8 +211,11 @@ func TestCatalogIsConsistent(t *testing.T) {
 			t.Errorf("duplicate id %s", a.ID)
 		}
 		seen[a.ID] = true
-		if a.Target < 1 || (a.Detector != auto && a.Detector != diff) {
+		if a.Target < 1 || (a.Detector != auto && a.Detector != code) {
 			t.Errorf("bad def %+v", a)
+		}
+		if a.Detector == code && !codeKinds[a.ID] {
+			t.Errorf("%s: no codescan kind with this id", a.ID)
 		}
 	}
 	for i := 1; i < len(Ranks); i++ {
@@ -178,4 +223,10 @@ func TestCatalogIsConsistent(t *testing.T) {
 			t.Errorf("ranks out of order at %d", i)
 		}
 	}
+}
+
+var codeKinds = map[string]bool{
+	codescan.Goroutine: true, codescan.Channel: true, codescan.Select: true, codescan.Context: true,
+	codescan.Generics: true, codescan.ErrWrap: true, codescan.FirstTest: true, codescan.Benchmark: true,
+	codescan.TableTest: true, codescan.Fuzz: true, codescan.NilMap: true,
 }

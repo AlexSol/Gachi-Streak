@@ -38,6 +38,11 @@ func (s *Server) CheckDeadlines(ctx context.Context) {
 			s.Log.Error("worker", "user", u.Name, "err", err)
 		}
 	}
+	// Store achievements earned since the last pass (deadline misses,
+	// pings, scanned pushes), so they unlock even if nobody looks.
+	if _, err := s.computeProgress(ctx, 0); err != nil {
+		s.Log.Error("worker: achievements", "err", err)
+	}
 	if _, err := s.Store.PurgeExpiredSessions(ctx, now); err != nil {
 		s.Log.Error("worker: purge sessions", "err", err)
 	}

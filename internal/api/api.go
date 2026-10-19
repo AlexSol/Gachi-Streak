@@ -115,8 +115,8 @@ type AchievementDef struct {
 	Category string `json:"category"` // streak | go | tests | duo | shame | secret
 	XP       int    `json:"xp"`
 	Target   int    `json:"target"`
-	// Detector is "auto" (computed from activity history) or "diff"
-	// (needs commit diff analysis — not implemented yet, never unlocks).
+	// Detector is "auto" (computed from activity history) or "code"
+	// (Go constructs found in commits pushed to GitHub).
 	Detector string `json:"detector"`
 	Rule     string `json:"rule"` // human-readable detection rule
 	Secret   bool   `json:"secret,omitempty"`
@@ -129,20 +129,26 @@ type AchievementState struct {
 	Day      string `json:"day,omitempty"` // day it was unlocked (user's time zone)
 	Progress int    `json:"progress"`
 	Target   int    `json:"target"`
+	// New is set on the requesting user's own unlocks they have not been
+	// notified about yet (see POST /achievements/seen).
+	New bool `json:"new,omitempty"`
 }
 
 // UserProgress is the XP, rank and achievements of one user.
 type UserProgress struct {
-	Name           string             `json:"name"`
-	XP             int                `json:"xp"`
-	XPDays         int                `json:"xp_days"`
-	XPAchievements int                `json:"xp_achievements"`
-	XPPenalty      int                `json:"xp_penalty"` // already subtracted, >= 0
-	Rank           int                `json:"rank"`       // RankDef.Level
-	NextRankXP     int                `json:"next_rank_xp,omitempty"`
-	ActiveDays     int                `json:"active_days"`
-	Failures       int                `json:"failures"`
-	Achievements   []AchievementState `json:"achievements"`
+	Name           string `json:"name"`
+	XP             int    `json:"xp"`
+	XPDays         int    `json:"xp_days"`
+	XPAchievements int    `json:"xp_achievements"`
+	XPPenalty      int    `json:"xp_penalty"` // already subtracted, >= 0
+	Rank           int    `json:"rank"`       // RankDef.Level
+	NextRankXP     int    `json:"next_rank_xp,omitempty"`
+	ActiveDays     int    `json:"active_days"`
+	Failures       int    `json:"failures"`
+	// CodeTracking is true when the user's pushes are analyzed (GitHub
+	// login set), i.e. "code" achievements can unlock.
+	CodeTracking bool               `json:"code_tracking"`
+	Achievements []AchievementState `json:"achievements"`
 }
 
 // ProgressResponse is returned by GET /progress.

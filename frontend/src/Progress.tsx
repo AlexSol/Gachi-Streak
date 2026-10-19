@@ -10,6 +10,7 @@ import {
   type UserProgress,
 } from "./api";
 import type { Dict, Lang } from "./i18n";
+import { AchViewer, BriefsIcon, type Look } from "./AchViewer";
 
 const POLL_MS = 60_000;
 
@@ -196,37 +197,11 @@ export function RanksPage({ t, me, onUnauthorized }: { t: Dict; me: string; onUn
 
 // ---------- achievements page ----------
 
-type Look = "done" | "shame" | "progress" | "locked" | "soon" | "secret";
-
-function lookOf(def: AchievementDef, st: AchievementState): Look {
+function lookOf(def: AchievementDef, st: AchievementState, codeTracking: boolean): Look {
   if (st.unlocked) return def.category === "shame" ? "shame" : "done";
   if (def.secret) return "secret";
-  if (def.detector === "diff") return "soon";
+  if (def.detector === "code" && !codeTracking) return "soon";
   return st.progress > 0 ? "progress" : "locked";
-}
-
-function AchIcon({ look }: { look: Look }) {
-  if (look === "done" || look === "shame")
-    return (
-      <svg width="40" height="40" viewBox="0 0 44 44" aria-hidden="true" class="ach-icon">
-        <path d="M22 3 L39 13 V31 L22 41 L5 31 V13 Z" fill="none" stroke="currentColor" stroke-width="2.2" />
-        <path d="M14 22 L20 28 L31 16" fill="none" stroke="currentColor" stroke-width="2.8" />
-      </svg>
-    );
-  if (look === "secret")
-    return (
-      <svg width="40" height="40" viewBox="0 0 44 44" aria-hidden="true" class="ach-icon">
-        <path d="M22 3 L39 13 V31 L22 41 L5 31 V13 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3" />
-        <path d="M18 18 A4 4 0 1 1 23 22 C22 23 22 24 22 26 M22 30 V31" fill="none" stroke="currentColor" stroke-width="2.2" />
-      </svg>
-    );
-  return (
-    <svg width="40" height="40" viewBox="0 0 44 44" aria-hidden="true" class="ach-icon">
-      <path d="M22 3 L39 13 V31 L22 41 L5 31 V13 Z" fill="none" stroke="currentColor" stroke-width="2" />
-      <rect x="15" y="20" width="14" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
-      <path d="M18 20 V17 A4 4 0 0 1 26 17 V20" fill="none" stroke="currentColor" stroke-width="2" />
-    </svg>
-  );
 }
 
 const cats: ("all" | AchCategory)[] = ["all", "streak", "go", "tests", "duo", "shame", "secret"];
@@ -236,15 +211,32 @@ export function AchievementsPage({
   lang,
   me,
   onUnauthorized,
+  onUnlocked,
 }: {
   t: Dict;
   lang: Lang;
   me: string;
   onUnauthorized: () => void;
+  /** Called with my unlocks the server flagged as new (once per unlock). */
+  onUnlocked?: (defs: AchievementDef[]) => void;
 }) {
   const { data, failed } = useProgress(onUnauthorized);
   const [cat, setCat] = useState<"all" | AchCategory>("all");
   const [who, setWho] = useState(me);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const closeViewer = useCallback(() => setOpenId(null), []);
+  // Unlocks announced in this session stay highlighted until reload.
+  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const news = data?.users.find((u) => u.name === me)?.achievements.filter((a) => a.new) ?? [];
+    if (!data || !news.length) return;
+    const ids = new Set(news.map((a) => a.id));
+    setFresh((prev) => new Set([...prev, ...ids]));
+    onUnlocked?.(data.achievements.filter((d) => ids.has(d.id)));
+    // If this fails, the next poll simply announces them again.
+    api.achievementsSeen().catch(() => undefined);
+  }, [data, me, onUnlocked]);
 
   const view = useMemo(() => {
     if (!data) return null;
@@ -258,7 +250,7 @@ export function AchievementsPage({
     const items = data.achievements.map((def) => {
       const st = mineMap.get(def.id) ?? { id: def.id, unlocked: false, progress: 0, target: def.target };
       const holders = otherMaps.filter((o) => o.map.get(def.id)?.unlocked).map((o) => o.name);
-      return { def, st, look: lookOf(def, st), holders };
+      return { def, st, look: lookOf(def, st, user.code_tracking), holders };
     });
     const unlocked = items.filter((i) => i.st.unlocked);
     const newest = [...unlocked].sort((a, b) => (b.st.day ?? "").localeCompare(a.st.day ?? ""))[0];
@@ -278,6 +270,8 @@ export function AchievementsPage({
   const shown = view.items.filter((i) => cat === "all" || i.def.category === cat);
   const name = (id: string) => t.ach[id]?.[0] ?? id;
   const desc = (id: string) => t.ach[id]?.[1] ?? "";
+  const xpText = (xp: number) => `${xp > 0 ? "+" : ""}${xp} XP`;
+  const opened = openId ? view.items.find((i) => i.def.id === openId) : undefined;
 
   return (
     <div class="dash">
@@ -322,7 +316,7 @@ export function AchievementsPage({
 
       {view.newest && (
         <section class={`card ach-newest look-${view.newest.look}`}>
-          <AchIcon look={view.newest.look} />
+          <BriefsIcon id={view.newest.def.id} look={view.newest.look} width={56} />
           <div class="ach-newest-main">
             <p class="eyebrow">
               {t.newest}
@@ -350,6 +344,7 @@ export function AchievementsPage({
         {shown.map(({ def, st, look, holders }) => {
           const hidden = look === "secret";
           const isMeView = view.user.name === me;
+          const isNew = isMeView && fresh.has(def.id);
           const owners = holders.length
             ? holders.map((h) => t.alsoPartner(h)).join(", ")
             : st.unlocked
@@ -358,10 +353,11 @@ export function AchievementsPage({
                 : ""
               : t.nobodyYet;
           return (
-            <li key={def.id} class={`ach look-${look}`}>
+            <li key={def.id} class={`ach look-${look}${isNew ? " is-new" : ""}`}>
+              <button class="ach-open" aria-label={`${hidden ? t.secretTitle : name(def.id)} — ${t.viewerOpen}`} onClick={() => setOpenId(def.id)} />
               <div class="ach-top">
-                <AchIcon look={look} />
-                <span class="mono ach-xp">{hidden ? "?" : `${def.xp > 0 ? "+" : ""}${def.xp} XP`}</span>
+                <BriefsIcon id={def.id} look={look} />
+                <span class="mono ach-xp">{hidden ? "?" : xpText(def.xp)}</span>
               </div>
               <div>
                 <h3>{hidden ? t.secretTitle : name(def.id)}</h3>
@@ -379,6 +375,8 @@ export function AchievementsPage({
                 </div>
               )}
               <p class="ach-meta">
+                {isNew && <span class="tag tag-new">{t.newTag}</span>}
+                {isNew && " "}
                 {look === "soon" && <span class="tag">{t.soon}</span>}
                 {st.unlocked && st.day && `${t.unlockedOn} ${fmtDay(st.day, lang)}`}
                 {st.unlocked && st.day && owners && " · "}
@@ -388,6 +386,38 @@ export function AchievementsPage({
           );
         })}
       </ul>
+
+      {opened && (
+        <AchViewer
+          id={opened.def.id}
+          look={opened.look}
+          xp={opened.look === "secret" ? "?" : xpText(opened.def.xp)}
+          closeLabel={t.close}
+          hint={t.viewerHint}
+          onClose={closeViewer}
+        >
+          <p class="eyebrow">
+            {t.cat[opened.def.category]}
+            {opened.look !== "secret" && t.briefs[opened.def.id] && ` · ${t.briefs[opened.def.id]}`}
+          </p>
+          <h2>{opened.look === "secret" ? t.secretTitle : name(opened.def.id)}</h2>
+          <p class="muted">{opened.look === "secret" ? (t.ach[opened.def.id]?.[2] ?? "") : desc(opened.def.id)}</p>
+          <code class="ach-rule">{opened.look === "secret" ? t.secretRule : opened.def.rule}</code>
+          {!opened.st.unlocked && opened.st.target > 1 && (
+            <div class="ach-progress">
+              <div class="xp-track thin">
+                <div class="xp-fill" style={{ width: `${Math.round((opened.st.progress / opened.st.target) * 100)}%` }} />
+              </div>
+              <span class="mono small">
+                {opened.st.progress} / {opened.st.target}
+              </span>
+            </div>
+          )}
+          <p class="ach-meta">
+            {opened.st.unlocked && opened.st.day ? `${t.unlockedOn} ${fmtDay(opened.st.day, lang)}` : opened.look === "soon" ? t.soon : t.notYet}
+          </p>
+        </AchViewer>
+      )}
     </div>
   );
 }

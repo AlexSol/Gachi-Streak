@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
-import { api, type Me } from "./api";
+import { api, type AchievementDef, type Me } from "./api";
 import { useI18n } from "./i18n";
 import { Login } from "./Login";
 import { Dashboard } from "./Dashboard";
@@ -45,6 +45,17 @@ export function App() {
 
   // Stable identity: pages use it as a useCallback dependency.
   const toGuest = useCallback(() => setAuth({ kind: "guest" }), []);
+
+  // "Achievement unlocked" toast, shown on whatever page is open.
+  const [unlocked, setUnlocked] = useState<AchievementDef[]>([]);
+  const onUnlocked = useCallback((defs: AchievementDef[]) => setUnlocked(defs), []);
+  useEffect(() => {
+    if (!unlocked.length) return;
+    const id = setTimeout(() => setUnlocked([]), 8000);
+    return () => clearTimeout(id);
+  }, [unlocked]);
+  const t = i18n.t;
+  const unlockedXP = unlocked.reduce((sum, d) => sum + d.xp, 0);
 
   const logout = async () => {
     await api.logout().catch(() => undefined);
@@ -92,9 +103,33 @@ export function App() {
               <RanksPage t={i18n.t} me={auth.me.name} onUnauthorized={toGuest} />
             </div>
             <div hidden={route !== "achievements"}>
-              <AchievementsPage t={i18n.t} lang={i18n.lang} me={auth.me.name} onUnauthorized={toGuest} />
+              <AchievementsPage
+                t={i18n.t}
+                lang={i18n.lang}
+                me={auth.me.name}
+                onUnauthorized={toGuest}
+                onUnlocked={onUnlocked}
+              />
             </div>
           </>
+        )}
+        {auth.kind === "user" && unlocked.length > 0 && (
+          <div class="unlock-toast" role="status">
+            <span class="unlock-cup" aria-hidden="true">🏆</span>
+            <span>
+              {unlocked.length === 1
+                ? t.unlockToast(t.ach[unlocked[0].id]?.[0] ?? unlocked[0].id, unlockedXP)
+                : t.unlockMany(unlocked.length, unlockedXP)}
+            </span>
+            {route !== "achievements" && (
+              <a class="unlock-open" href="#/achievements" onClick={() => setUnlocked([])}>
+                {t.unlockOpen}
+              </a>
+            )}
+            <button class="ghost small" aria-label="Close" onClick={() => setUnlocked([])}>
+              ×
+            </button>
+          </div>
         )}
       </main>
 

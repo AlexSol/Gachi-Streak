@@ -51,6 +51,9 @@ type Config struct {
 	WidgetMode string `json:"widget_mode"`
 	// Stick the widget to screen edges when dragged closer than this (px at 100% scale; 0 = off).
 	WidgetSnapPx int `json:"widget_snap_px"`
+
+	// Windows notification when an achievement unlocks.
+	AchievementNotifications bool `json:"achievement_notifications"`
 }
 
 // DefaultConfig returns a config with defaults filled in, relative to dataDir.
@@ -72,6 +75,8 @@ func DefaultConfig(dataDir string) Config {
 		ShowWidget:        true,
 		WidgetMode:        WidgetModeDesktop,
 		WidgetSnapPx:      20,
+
+		AchievementNotifications: true,
 	}
 }
 
