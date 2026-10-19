@@ -50,6 +50,8 @@ go build -o bin\gachi-server.exe .\cmd\server
 .\bin\gachi-server.exe serve -addr :8080
 ```
 
+Деплой на Fly.io (~$2–3/міс) — покроково в [docs/deploy-fly.md](docs/deploy-fly.md).
+
 Або в Docker:
 
 ```bash
