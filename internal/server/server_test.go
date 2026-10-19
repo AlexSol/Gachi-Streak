@@ -479,7 +479,19 @@ func TestAchievementsPersistAndSeen(t *testing.T) {
 	if code := f.do(t, "POST", "/achievements/seen", f.alex, "", nil); code != 204 {
 		t.Fatalf("seen %d", code)
 	}
-	if a := get(f.alex)["streak_7"]; !a.Unlocked || a.New {
-		t.Fatalf("after seen %+v", a)
+	if a := get(f.alex)["streak_7"]; !a.Unlocked || a.New || !a.Packed {
+		t.Fatalf("after seen: still packed %+v", a)
+	}
+	if a := get(f.sasha)["streak_7"]; a.Packed {
+		t.Fatalf("partner must not see alex's Packed flag: %+v", a)
+	}
+	if code := f.do(t, "POST", "/achievements/streak_365/open", f.alex, "", nil); code != 404 {
+		t.Fatalf("open locked: %d", code)
+	}
+	if code := f.do(t, "POST", "/achievements/streak_7/open", f.alex, "", nil); code != 204 {
+		t.Fatalf("open: %d", code)
+	}
+	if a := get(f.alex)["streak_7"]; !a.Unlocked || a.Packed {
+		t.Fatalf("after open %+v", a)
 	}
 }

@@ -11,6 +11,22 @@ import {
 } from "./api";
 import type { Dict, Lang } from "./i18n";
 import { AchViewer, BriefsIcon, type Look } from "./AchViewer";
+import { PackageArt } from "./briefs";
+import { EFFECTS, pickEffect, type Effect } from "./Unbox";
+
+// MVP only: buttons on every card that replay each opening effect.
+const DEBUG_EFFECTS = true;
+
+const flexTextFor = (xp: number) =>
+  xp >= 300 ? "♂ DUNGEON MASTER ♂" : xp >= 50 ? "♂ BOSS OF THIS GYM ♂" : "♂ BOY NEXT DOOR ♂";
+
+function PackageIcon({ id, width = 44 }: { id: string; width?: number }) {
+  return (
+    <svg width={width} height={(width * 160) / 200} viewBox="0 0 200 160" aria-hidden="true" class="ach-icon pkg-icon">
+      <PackageArt id={id} />
+    </svg>
+  );
+}
 
 const POLL_MS = 60_000;
 
@@ -223,8 +239,12 @@ export function AchievementsPage({
   const { data, failed } = useProgress(onUnauthorized);
   const [cat, setCat] = useState<"all" | AchCategory>("all");
   const [who, setWho] = useState(me);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const closeViewer = useCallback(() => setOpenId(null), []);
+  // real = the first unpacking (stored on the server); otherwise a preview.
+  const [openState, setOpenState] = useState<{ id: string; effect: Effect | null; real: boolean; n: number } | null>(null);
+  const closeViewer = useCallback(() => setOpenState(null), []);
+  // Unpacked in this session, before the next /progress poll says so.
+  const [unpacked, setUnpacked] = useState<Set<string>>(() => new Set());
+  const openId = openState?.id ?? null;
   // Unlocks announced in this session stay highlighted until reload.
   const [fresh, setFresh] = useState<Set<string>>(() => new Set());
 
@@ -272,6 +292,16 @@ export function AchievementsPage({
   const desc = (id: string) => t.ach[id]?.[1] ?? "";
   const xpText = (xp: number) => `${xp > 0 ? "+" : ""}${xp} XP`;
   const opened = openId ? view.items.find((i) => i.def.id === openId) : undefined;
+  const isMeView = view.user.name === me;
+  const packedOf = (id: string, packed?: boolean) => isMeView && !!packed && !unpacked.has(id);
+  const open = (id: string, category: string, packed: boolean, forced?: Effect) =>
+    setOpenState({ id, effect: forced ?? (packed ? pickEffect(category) : null), real: packed && !forced, n: Date.now() });
+  const onEffectDone = () => {
+    if (!openState?.real) return;
+    const id = openState.id;
+    setUnpacked((prev) => new Set(prev).add(id));
+    api.openAchievement(id).catch(() => undefined); // retried by the next unpacking if it fails
+  };
 
   return (
     <div class="dash">
@@ -316,7 +346,11 @@ export function AchievementsPage({
 
       {view.newest && (
         <section class={`card ach-newest look-${view.newest.look}`}>
-          <BriefsIcon id={view.newest.def.id} look={view.newest.look} width={56} />
+          {packedOf(view.newest.def.id, view.newest.st.packed) ? (
+            <PackageIcon id={view.newest.def.id} width={56} />
+          ) : (
+            <BriefsIcon id={view.newest.def.id} look={view.newest.look} width={56} />
+          )}
           <div class="ach-newest-main">
             <p class="eyebrow">
               {t.newest}
@@ -343,8 +377,8 @@ export function AchievementsPage({
       <ul class="ach-grid">
         {shown.map(({ def, st, look, holders }) => {
           const hidden = look === "secret";
-          const isMeView = view.user.name === me;
           const isNew = isMeView && fresh.has(def.id);
+          const packed = packedOf(def.id, st.packed);
           const owners = holders.length
             ? holders.map((h) => t.alsoPartner(h)).join(", ")
             : st.unlocked
@@ -353,10 +387,14 @@ export function AchievementsPage({
                 : ""
               : t.nobodyYet;
           return (
-            <li key={def.id} class={`ach look-${look}${isNew ? " is-new" : ""}`}>
-              <button class="ach-open" aria-label={`${hidden ? t.secretTitle : name(def.id)} — ${t.viewerOpen}`} onClick={() => setOpenId(def.id)} />
+            <li key={def.id} class={`ach look-${look}${isNew ? " is-new" : ""}${packed ? " is-packed" : ""}`}>
+              <button
+                class="ach-open"
+                aria-label={`${hidden ? t.secretTitle : name(def.id)} — ${packed ? t.unpack : t.viewerOpen}`}
+                onClick={() => open(def.id, def.category, packed)}
+              />
               <div class="ach-top">
-                <BriefsIcon id={def.id} look={look} />
+                {packed ? <PackageIcon id={def.id} /> : <BriefsIcon id={def.id} look={look} />}
                 <span class="mono ach-xp">{hidden ? "?" : xpText(def.xp)}</span>
               </div>
               <div>
@@ -375,13 +413,24 @@ export function AchievementsPage({
                 </div>
               )}
               <p class="ach-meta">
-                {isNew && <span class="tag tag-new">{t.newTag}</span>}
-                {isNew && " "}
+                {packed && <span class="tag tag-unpack">{t.unpack}</span>}
+                {packed && " "}
+                {isNew && !packed && <span class="tag tag-new">{t.newTag}</span>}
+                {isNew && !packed && " "}
                 {look === "soon" && <span class="tag">{t.soon}</span>}
                 {st.unlocked && st.day && `${t.unlockedOn} ${fmtDay(st.day, lang)}`}
                 {st.unlocked && st.day && owners && " · "}
                 {owners}
               </p>
+              {DEBUG_EFFECTS && st.unlocked && (
+                <div class="fx-debug" aria-label="MVP">
+                  {EFFECTS.map((fx) => (
+                    <button key={fx} class="ghost small" onClick={() => open(def.id, def.category, false, fx)}>
+                      ▶ {t.fxName[fx]}
+                    </button>
+                  ))}
+                </div>
+              )}
             </li>
           );
         })}
@@ -389,6 +438,12 @@ export function AchievementsPage({
 
       {opened && (
         <AchViewer
+          key={openState?.n}
+          effect={openState?.effect}
+          onEffectDone={onEffectDone}
+          flexText={flexTextFor(opened.def.xp)}
+          stampText={t.shameStamp}
+          skipHint={t.skipHint}
           id={opened.def.id}
           look={opened.look}
           xp={opened.look === "secret" ? "?" : xpText(opened.def.xp)}

@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { Briefs, type Look } from "./briefs";
+import { Unboxing, type Effect } from "./Unbox";
 
 export type { Look } from "./briefs";
 
@@ -84,6 +85,11 @@ export function AchViewer({
   hint,
   onClose,
   children,
+  effect,
+  onEffectDone,
+  flexText = "",
+  stampText = "",
+  skipHint = "",
 }: {
   id: string;
   look: Look;
@@ -92,8 +98,21 @@ export function AchViewer({
   hint: string;
   onClose: () => void;
   children: ComponentChildren;
+  /** Play this opening effect first, then show the spinnable badge. */
+  effect?: Effect | null;
+  onEffectDone?: () => void;
+  flexText?: string;
+  stampText?: string;
+  skipHint?: string;
 }) {
   const { el, kick } = useSpinner();
+  const [playing, setPlaying] = useState(!!effect);
+  const doneRef = useRef(onEffectDone);
+  doneRef.current = onEffectDone;
+  const finish = () => {
+    setPlaying(false);
+    doneRef.current?.();
+  };
   const closeBtn = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -125,8 +144,19 @@ export function AchViewer({
         ×
       </button>
       <div class="viewer-body" onClick={(e) => e.stopPropagation()}>
-        <div class="viewer-stage" onClick={spinBySide} title={hint}>
-          <div class="viewer-coin" ref={el}>
+        <div class="viewer-stage" onClick={playing ? undefined : spinBySide} title={playing ? skipHint : hint}>
+          {playing && effect && (
+            <Unboxing
+              effect={effect}
+              id={id}
+              look={look}
+              flexText={flexText}
+              stampText={stampText}
+              skipHint={skipHint}
+              onDone={finish}
+            />
+          )}
+          <div class={`viewer-coin${playing ? " is-hidden" : " is-shown"}`} ref={el}>
             <div class="viewer-face">
               <BriefsFace id={id} look={look} label={xp} />
             </div>
@@ -134,11 +164,15 @@ export function AchViewer({
               <BriefsFace id={id} look={look} label={xp} back />
             </div>
           </div>
-          <span class="viewer-arrow left" aria-hidden="true">⟲</span>
-          <span class="viewer-arrow right" aria-hidden="true">⟳</span>
+          {!playing && (
+            <>
+              <span class="viewer-arrow left" aria-hidden="true">⟲</span>
+              <span class="viewer-arrow right" aria-hidden="true">⟳</span>
+            </>
+          )}
         </div>
-        <p class="viewer-hint">{hint}</p>
-        <div class="viewer-info">{children}</div>
+        <p class="viewer-hint">{playing ? skipHint : hint}</p>
+        <div class={`viewer-info${playing ? " is-hidden" : " is-shown"}`}>{children}</div>
       </div>
     </div>
   );

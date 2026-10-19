@@ -59,6 +59,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /activity", s.auth(http.HandlerFunc(s.handleActivity)))
 	mux.Handle("GET /progress", s.auth(http.HandlerFunc(s.handleProgress)))
 	mux.Handle("POST /achievements/seen", s.auth(http.HandlerFunc(s.handleAchievementsSeen)))
+	mux.Handle("POST /achievements/{id}/open", s.auth(http.HandlerFunc(s.handleAchievementOpen)))
 
 	// Browser sessions: an invite token is exchanged for an HttpOnly cookie.
 	mux.HandleFunc("POST /auth/login", s.handleLogin)

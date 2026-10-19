@@ -132,6 +132,9 @@ type AchievementState struct {
 	// New is set on the requesting user's own unlocks they have not been
 	// notified about yet (see POST /achievements/seen).
 	New bool `json:"new,omitempty"`
+	// Packed is set on the requesting user's own unlocks they have not
+	// unpacked in the web app yet (see POST /achievements/{id}/open).
+	Packed bool `json:"packed,omitempty"`
 }
 
 // UserProgress is the XP, rank and achievements of one user.

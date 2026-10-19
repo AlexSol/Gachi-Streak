@@ -14,6 +14,7 @@ type Unlock struct {
 	Day           string    // day it was earned (user's time zone)
 	UnlockedAt    time.Time // when the server noticed it
 	SeenAt        time.Time // zero until the user has been notified
+	OpenedAt      time.Time // zero until the user unpacked it in the web app
 }
 
 // AchievementRepo is the repository of the achievements_unlocked table.
@@ -27,7 +28,7 @@ func (s *Store) Achievements() *AchievementRepo { return &AchievementRepo{db: s.
 // ListByUser returns every unlock of a user, oldest day first.
 func (r *AchievementRepo) ListByUser(ctx context.Context, userID int64) ([]Unlock, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT achievement_id, day, unlocked_at, seen_at FROM achievements_unlocked
+		`SELECT achievement_id, day, unlocked_at, seen_at, opened_at FROM achievements_unlocked
 		 WHERE user_id = ? ORDER BY day, achievement_id`, userID)
 	if err != nil {
 		return nil, err
@@ -36,13 +37,16 @@ func (r *AchievementRepo) ListByUser(ctx context.Context, userID int64) ([]Unloc
 	var out []Unlock
 	for rows.Next() {
 		u := Unlock{UserID: userID}
-		var unlocked, seen string
-		if err := rows.Scan(&u.AchievementID, &u.Day, &unlocked, &seen); err != nil {
+		var unlocked, seen, opened string
+		if err := rows.Scan(&u.AchievementID, &u.Day, &unlocked, &seen, &opened); err != nil {
 			return nil, err
 		}
 		u.UnlockedAt = parseTS(unlocked)
 		if seen != "" {
 			u.SeenAt = parseTS(seen)
+		}
+		if opened != "" {
+			u.OpenedAt = parseTS(opened)
 		}
 		out = append(out, u)
 	}
@@ -80,4 +84,19 @@ func (r *AchievementRepo) DeleteByUser(ctx context.Context, userID int64) (int64
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// MarkOpened records that the user unpacked an achievement (once).
+// It returns ErrNotFound if the user has not unlocked it.
+func (r *AchievementRepo) MarkOpened(ctx context.Context, userID int64, achievementID string, now time.Time) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE achievements_unlocked SET opened_at = CASE WHEN opened_at = '' THEN ? ELSE opened_at END
+		 WHERE user_id = ? AND achievement_id = ?`, ts(now), userID, achievementID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

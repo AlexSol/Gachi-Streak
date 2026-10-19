@@ -306,3 +306,160 @@ input {
 .viewer-info .eyebrow { margin: 0; }
 @keyframes viewer-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .viewer { animation: none; } .ach, .ach:hover { transition: none; transform: none; } }
+
+/* ---------- packed (unlocked, not unpacked yet) ---------- */
+.ach.is-packed { border-color: #d9ad6c; box-shadow: 0 0 0 1px #d9ad6c66, 0 0 26px #d9ad6c33; }
+.ach.is-packed .pkg-icon { animation: pkg-hop 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.ach-newest .pkg-icon { animation: pkg-hop 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.tag-unpack { background: #d9ad6c; color: #2a1a08; font-weight: 800; animation: pkg-pulse 1.6s ease-in-out infinite; }
+@keyframes pkg-hop {
+  0%, 70%, 100% { transform: none; }
+  76% { transform: translateY(-6px) rotate(-6deg); }
+  82% { transform: translateY(0) rotate(4deg); }
+  88% { transform: translateY(-3px) rotate(-2deg); }
+  94% { transform: none; }
+}
+@keyframes pkg-pulse { 50% { box-shadow: 0 0 0 4px #d9ad6c44; } }
+
+/* MVP: effect preview buttons */
+.fx-debug { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.fx-debug button { font-size: 11px; padding: 3px 7px; }
+
+/* ---------- viewer while an effect plays ---------- */
+.viewer-coin.is-hidden { visibility: hidden; }
+.viewer-coin.is-shown, .viewer-info.is-shown { animation: fx-fade-in .35s ease-out; }
+.viewer-info.is-hidden { visibility: hidden; }
+@keyframes fx-fade-in { from { opacity: 0; } }
+
+.fx { position: absolute; inset: 0; z-index: 2; cursor: pointer; }
+.fx-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.fx i { position: absolute; left: 50%; top: 50%; font-style: normal; pointer-events: none; }
+
+/* A. unbox */
+.fx-unbox .fx-half { animation: fx-shake .9s linear, var(--fly) .7s .9s cubic-bezier(.3, .1, .6, 1) forwards; }
+.fx-half-l { clip-path: inset(0 50% 0 0); --fly: fx-fly-l; }
+.fx-half-r { clip-path: inset(0 0 0 50%); --fly: fx-fly-r; }
+@keyframes fx-shake {
+  0%, 100% { transform: none; }
+  10%, 50% { transform: rotate(-4deg) translateX(-4px); }
+  30%, 70% { transform: rotate(4deg) translateX(4px); }
+  85% { transform: scale(1.06); }
+}
+@keyframes fx-fly-l { to { transform: translate(-70%, 30%) rotate(-35deg); opacity: 0; } }
+@keyframes fx-fly-r { to { transform: translate(70%, 30%) rotate(35deg); opacity: 0; } }
+.fx-pop { opacity: 0; transform: scale(.2); animation: fx-pop .8s .95s cubic-bezier(.2, 1.6, .4, 1) forwards; filter: drop-shadow(0 0 24px #ffd16688); }
+@keyframes fx-pop { to { opacity: 1; transform: none; } }
+.fx-rays {
+  position: absolute; inset: -40%; opacity: 0; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #ffd16655 0 10deg, transparent 10deg 24deg);
+  mask: radial-gradient(circle, #000 20%, transparent 65%); -webkit-mask: radial-gradient(circle, #000 20%, transparent 65%);
+  animation: fx-rays-in .5s 1s forwards, fx-rotate 8s 1s linear infinite;
+}
+@keyframes fx-rays-in { to { opacity: 1; } }
+@keyframes fx-rotate { to { rotate: 360deg; } }
+.fx-confetti {
+  width: 9px; height: 14px; margin: -7px 0 0 -4px; border-radius: 2px; opacity: 0;
+  animation: fx-burst 1.5s calc(1s + var(--d)) cubic-bezier(.15, .7, .4, 1) forwards;
+}
+@keyframes fx-burst {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 120px)) rotate(var(--r)); }
+}
+
+/* B. color spin */
+.fx-spin { perspective: 900px; }
+.fx-spinner { position: absolute; inset: 0; transform-style: preserve-3d; animation: fx-spin 2s cubic-bezier(.12, .55, .18, 1) forwards; }
+@keyframes fx-spin { from { transform: rotateY(0) scale(.7); } to { transform: rotateY(1440deg) scale(1); } }
+.fx-silhouette { filter: brightness(0) drop-shadow(0 0 14px #ffffff55); }
+.fx-fill { clip-path: inset(100% 0 0 0); animation: fx-fill 1.4s .6s ease-in-out forwards; }
+@keyframes fx-fill { to { clip-path: inset(0 0 0 0); } }
+.fx-flash {
+  position: absolute; inset: -60%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, #fff 0, #fff8 25%, transparent 60%);
+  animation: fx-flash .7s 2s ease-out forwards;
+}
+@keyframes fx-flash { 20% { opacity: 1; } to { opacity: 0; } }
+.fx-ring {
+  position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px; border-radius: 50%;
+  border: 4px solid currentColor; opacity: 0; animation: fx-ring .8s 2s ease-out forwards;
+}
+@keyframes fx-ring { 0% { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(4); } }
+
+/* D. gachi flex */
+.fx-drop { transform: translateY(-160%); animation: fx-drop .55s cubic-bezier(.55, 0, 1, .45) forwards, fx-squash .45s .55s ease-out; transform-origin: 50% 100%; }
+@keyframes fx-drop { to { transform: none; } }
+@keyframes fx-squash { 0% { transform: scale(1.18, .78); } 45% { transform: scale(.94, 1.06); } 100% { transform: none; } }
+.fx-dust {
+  width: 34px; height: 34px; margin: 70px 0 0 -17px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, #cfc6bd 0, #cfc6bd66 45%, transparent 70%);
+  animation: fx-dust .9s calc(.55s + var(--d)) ease-out forwards;
+}
+@keyframes fx-dust { 0% { opacity: .9; transform: scale(.4); } to { opacity: 0; transform: translate(var(--dx), -18px) scale(2.2); } }
+.fx-male {
+  font-size: 30px; font-weight: 900; color: #6fb7ff; margin: -20px 0 0 -10px; opacity: 0; text-shadow: 0 0 12px #6fb7ff;
+  animation: fx-burst 1.3s calc(.6s + var(--d)) cubic-bezier(.15, .7, .4, 1) forwards;
+}
+.fx-slam {
+  position: absolute; left: 50%; bottom: 3%; margin: 0; white-space: nowrap; opacity: 0;
+  font-size: clamp(18px, 5vw, 30px); font-weight: 900; letter-spacing: 1px; color: #fff;
+  -webkit-text-stroke: 1.5px #000; text-shadow: 0 0 18px var(--accent), 3px 3px 0 #000;
+  transform: translateX(-50%) scale(3); animation: fx-slam .3s .9s cubic-bezier(.5, 0, .9, .5) forwards;
+}
+@keyframes fx-slam { to { opacity: 1; transform: translateX(-50%) scale(1) rotate(-3deg); } }
+.viewer.fx-quake { animation: fx-quake .45s linear; }
+@keyframes fx-quake {
+  10% { transform: translate(-8px, 5px); } 25% { transform: translate(7px, -6px); } 40% { transform: translate(-6px, -3px); }
+  55% { transform: translate(5px, 4px); } 70% { transform: translate(-3px, 2px); } 85% { transform: translate(2px, -1px); }
+}
+
+/* E. shame */
+.fx-sag { position: absolute; inset: 0; animation: fx-sag 2.2s ease-in forwards; transform-origin: 50% 0; }
+@keyframes fx-sag {
+  20% { transform: rotate(-3deg); } 40% { transform: translateY(4%) rotate(3deg); }
+  60% { transform: translateY(8%) rotate(-2deg); } 100% { transform: translateY(12%) rotate(1deg) scaleY(.94); }
+}
+/* RGB split while glitching, then the colors come back. */
+.fx-gray { filter: grayscale(1) brightness(.8); animation: fx-rgb .3s steps(2) 7, fx-ungray .9s 2.2s ease-out forwards; }
+@keyframes fx-rgb {
+  0% { filter: grayscale(1) brightness(.8) drop-shadow(-7px 0 0 #ff2a2acc) drop-shadow(7px 0 0 #2affffcc); }
+  50% { filter: grayscale(1) brightness(.8) drop-shadow(5px 2px 0 #ff2a2acc) drop-shadow(-6px -1px 0 #2affffcc); }
+  100% { filter: grayscale(1) brightness(.8) drop-shadow(-3px 0 0 #ff2a2acc) drop-shadow(9px 0 0 #2affffcc); }
+}
+@keyframes fx-ungray { from { filter: grayscale(1) brightness(.8); } to { filter: none; } }
+/* Torn horizontal slices sliding sideways. */
+.fx-ghost { filter: grayscale(1) brightness(1.1) drop-shadow(-4px 0 0 #ff2a2a); opacity: 0; animation: fx-glitch .34s steps(2) 6; }
+.fx-ghost-a { --gx: -14px; }
+.fx-ghost-b { --gx: 12px; animation-delay: .17s; filter: grayscale(1) brightness(1.1) drop-shadow(4px 0 0 #2affff); }
+@keyframes fx-glitch {
+  0% { opacity: 1; transform: translateX(var(--gx)); clip-path: inset(12% 0 70% 0); }
+  25% { opacity: 1; transform: translateX(calc(var(--gx) * -1)); clip-path: inset(48% 0 38% 0); }
+  50% { opacity: 1; transform: translateX(calc(var(--gx) * 1.5)); clip-path: inset(30% 0 58% 0); }
+  75% { opacity: 1; transform: translateX(0); clip-path: inset(74% 0 12% 0); }
+  100% { opacity: 1; transform: translateX(var(--gx)); clip-path: inset(4% 0 86% 0); }
+}
+@keyframes fx-out { to { opacity: 0; } }
+.fx-scan {
+  position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: repeating-linear-gradient(0deg, #ff3b3b22 0 2px, transparent 2px 5px);
+  animation: fx-out .3s 2.1s forwards;
+}
+.fx-stamp {
+  position: absolute; left: 50%; top: 50%; margin: 0; padding: 4px 18px; opacity: 0;
+  border: 5px solid var(--fail); border-radius: 8px; color: var(--fail); background: #1a0a0bcc;
+  font-size: clamp(28px, 8vw, 52px); font-weight: 900; letter-spacing: 6px;
+  transform: translate(-50%, -50%) rotate(-14deg) scale(2.6);
+  animation: fx-stamp .22s 2.3s cubic-bezier(.6, 0, 1, .6) forwards;
+}
+@keyframes fx-stamp { to { opacity: .92; transform: translate(-50%, -50%) rotate(-14deg) scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ach.is-packed .pkg-icon, .ach-newest .pkg-icon, .tag-unpack { animation: none; }
+  .fx *, .fx { animation: none !important; }
+  .fx-pop, .fx-drop { opacity: 1; transform: none; }
+  .fx-half, .fx-confetti, .fx-dust, .fx-male, .fx-ghost, .fx-scan, .fx-flash, .fx-ring, .fx-rays { display: none; }
+  .fx-fill { clip-path: none; }
+  .fx-slam { opacity: 1; transform: translateX(-50%); }
+  .fx-stamp { opacity: 1; transform: translate(-50%, -50%) rotate(-14deg); }
+  .viewer.fx-quake { animation: none; }
+}

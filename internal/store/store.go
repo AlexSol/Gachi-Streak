@@ -106,7 +106,42 @@ func (s *Store) migrate(ctx context.Context) error {
 			return fmt.Errorf("%w\n%s", err, stmt)
 		}
 	}
+	// Columns added after a table first shipped: CREATE TABLE IF NOT EXISTS
+	// does not touch existing tables.
+	for _, c := range addedColumns {
+		if err := s.addColumn(ctx, c[0], c[1], c[2]); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+var addedColumns = [][3]string{
+	{"achievements_unlocked", "opened_at", "TEXT NOT NULL DEFAULT ''"},
+}
+
+// addColumn adds table.column unless it exists already.
+func (s *Store) addColumn(ctx context.Context, table, column, def string) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return err
+		}
+		if name == column {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+	_, err = s.db.ExecContext(ctx, fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, table, column, def))
+	return err
 }
 
 const schema = `

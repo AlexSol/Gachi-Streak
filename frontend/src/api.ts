@@ -90,6 +90,8 @@ export interface AchievementState {
   target: number;
   /** My own unlock I have not been notified about yet. */
   new?: boolean;
+  /** My own unlock I have not unpacked yet (plays the opening effect). */
+  packed?: boolean;
 }
 
 export interface UserProgress {
@@ -142,6 +144,7 @@ export const api = {
   status: () => call<StatusResponse>("GET", "/status"),
   progress: () => call<ProgressResponse>("GET", "/progress"),
   achievementsSeen: () => call<void>("POST", "/achievements/seen"),
+  openAchievement: (id: string) => call<void>("POST", `/achievements/${encodeURIComponent(id)}/open`),
   activity: (days = 7) => call<ActivityResponse>("GET", `/activity?days=${days}`),
   ping: (note: string) =>
     call<{ counted: boolean; user: UserStatus }>("POST", "/ping", { source: "manual", note }),

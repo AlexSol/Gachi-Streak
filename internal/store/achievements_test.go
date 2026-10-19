@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -41,8 +42,22 @@ func TestAchievementRepo(t *testing.T) {
 		t.Fatalf("already seen, got %d", n)
 	}
 	list, _ = repo.ListByUser(ctx, u.ID)
-	if !list[0].SeenAt.Equal(now.Add(time.Minute)) {
+	if !list[0].SeenAt.Equal(now.Add(time.Minute)) || !list[0].OpenedAt.IsZero() {
 		t.Fatalf("seen_at %+v", list[0])
+	}
+
+	if err := repo.MarkOpened(ctx, u.ID, "streak_7", now.Add(2*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.MarkOpened(ctx, u.ID, "streak_7", now.Add(time.Hour)); err != nil {
+		t.Fatal(err) // again: keeps the first time
+	}
+	if err := repo.MarkOpened(ctx, u.ID, "streak_365", now); err != ErrNotFound {
+		t.Fatalf("not unlocked: %v", err)
+	}
+	list, _ = repo.ListByUser(ctx, u.ID)
+	if !list[1].OpenedAt.Equal(now.Add(2 * time.Minute)) {
+		t.Fatalf("opened_at %+v", list[1])
 	}
 }
 
@@ -83,5 +98,30 @@ func TestCodeRepo(t *testing.T) {
 	want := []CodeFinding{{"errwrap", "2026-10-18", 5}, {"goroutine", "2026-10-18", 1}}
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("findings %+v, want %+v", got, want)
+	}
+}
+
+func TestAddedColumnMigration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "old.db")
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a database from before opened_at existed.
+	if _, err := s.db.ExecContext(ctx, `ALTER TABLE achievements_unlocked DROP COLUMN opened_at`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(ctx, path) // must add it back
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.Achievements().ListByUser(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.migrate(ctx); err != nil { // and be idempotent
+		t.Fatal(err)
 	}
 }

@@ -630,3 +630,40 @@ function CareLabel({ label, color }: { label: string; color: string }) {
     </g>
   );
 }
+
+/**
+ * A retail pack: kraft cardboard with a window that shows only the dark
+ * silhouette of the model inside. Used until the user unpacks it.
+ */
+export function PackageArt({ id }: { id: string }) {
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const m = MODELS[id] ?? MODELS[FALLBACK];
+  const g = `p${uid}`;
+  return (
+    <g>
+      <defs>
+        {grad(`${g}-k`, ["#d9ad6c", "#b9874a", "#946634"])}
+        <clipPath id={`${g}-w`}>
+          <rect x="62" y="44" width="76" height="66" rx="10" />
+        </clipPath>
+      </defs>
+      <rect x="34" y="8" width="132" height="146" rx="8" fill={url(`${g}-k`)} stroke="#5e3f1c" stroke-width="3" />
+      <path d="M34 30 H166" stroke="#5e3f1c" stroke-width="2" opacity=".5" />
+      <path d="M92 8 H108 V30 H92 Z" fill="#e8d7b8" opacity=".55" />
+      <text x="100" y="25" text-anchor="middle" font-size="12" font-weight="900" letter-spacing="2" font-family="sans-serif" fill="#3b2410">
+        ♂ GACHI
+      </text>
+      <rect x="62" y="44" width="76" height="66" rx="10" fill="#1a1412" stroke="#5e3f1c" stroke-width="2.5" />
+      <g clip-path={url(`${g}-w`)}>
+        <g transform="translate(62 46) scale(.38)" opacity=".85">
+          {m.shape({ fill: "#000", stroke: "#3a2c24", sw: 4 })}
+        </g>
+        <path d="M70 110 L118 40 M84 112 L130 46" stroke="#ffffff" stroke-width="5" opacity=".12" />
+      </g>
+      <text x="100" y="132" text-anchor="middle" font-size="10" font-weight="800" letter-spacing="1" font-family="sans-serif" fill="#3b2410">
+        1 PACK · 100% GO
+      </text>
+      <path d="M34 140 H166" stroke="#5e3f1c" stroke-width="1.5" stroke-dasharray="4 3" opacity=".6" />
+    </g>
+  );
+}

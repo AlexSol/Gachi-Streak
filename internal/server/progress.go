@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -16,6 +17,7 @@ type AchievementRepository interface {
 	ListByUser(ctx context.Context, userID int64) ([]store.Unlock, error)
 	Unlock(ctx context.Context, userID int64, achievementID, day string, now time.Time) (inserted bool, err error)
 	MarkSeen(ctx context.Context, userID int64, now time.Time) (int64, error)
+	MarkOpened(ctx context.Context, userID int64, achievementID string, now time.Time) error
 }
 
 // CodeRepository stores which pushes were analyzed and what was found.
@@ -56,6 +58,24 @@ func (s *Server) handleAchievementsSeen(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// handleAchievementOpen records that the caller unpacked an achievement
+// in the web app (plays the opening effect only once).
+func (s *Server) handleAchievementOpen(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r)
+	id := r.PathValue("id")
+	err := s.Achievements.MarkOpened(r.Context(), u.ID, id, s.Now())
+	if errors.Is(err, store.ErrNotFound) {
+		writeErr(w, http.StatusNotFound, "achievement not unlocked")
+		return
+	}
+	if err != nil {
+		s.Log.Error("achievement open", "user", u.Name, "id", id, "err", err)
+		writeErr(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // computeProgress derives every user's progress, stores achievements that
 // were just earned and returns the result. Unlocks of viewerID (0 = none)
 // that were not seen yet are flagged New.
@@ -66,6 +86,7 @@ func (s *Server) computeProgress(ctx context.Context, viewerID int64) ([]api.Use
 	}
 	hist := make([]progress.History, len(users))
 	unseen := map[string]bool{}
+	unopened := map[string]bool{} // viewer's unlocks not unpacked yet
 	for i, u := range users {
 		unlocks, err := s.Achievements.ListByUser(ctx, u.ID)
 		if err != nil {
@@ -79,6 +100,9 @@ func (s *Server) computeProgress(ctx context.Context, viewerID int64) ([]api.Use
 			hist[i].Earned[un.AchievementID] = un.Day
 			if u.ID == viewerID && un.SeenAt.IsZero() {
 				unseen[un.AchievementID] = true
+			}
+			if u.ID == viewerID && un.OpenedAt.IsZero() {
+				unopened[un.AchievementID] = true
 			}
 		}
 	}
@@ -110,11 +134,13 @@ func (s *Server) computeProgress(ctx context.Context, viewerID int64) ([]api.Use
 					s.Log.Info("achievement unlocked", "user", u.Name, "id", st.ID, "day", st.Day)
 					if u.ID == viewerID {
 						unseen[st.ID] = true
+						unopened[st.ID] = true
 					}
 				}
 			}
-			if u.ID == viewerID && unseen[st.ID] {
-				up.Achievements[k].New = true
+			if u.ID == viewerID {
+				up.Achievements[k].New = unseen[st.ID]
+				up.Achievements[k].Packed = unopened[st.ID]
 			}
 		}
 		out = append(out, up)
