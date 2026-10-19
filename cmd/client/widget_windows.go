@@ -56,6 +56,7 @@ type Widget struct {
 	wv   webview2.WebView
 	hwnd uintptr
 	mode winapi.WidgetMode
+	snap int    // edge snapping distance at 100% scale
 	last []byte // last JSON, replayed when the page (re)loads
 }
 
@@ -138,11 +139,12 @@ func (w *Widget) run(ready chan struct{}) {
 	}
 
 	w.mu.Lock()
-	mode := w.mode
+	mode, snap := w.mode, w.snap
 	w.wv, w.hwnd = wv, hwnd
 	w.mu.Unlock()
 
-	winapi.MakeWidget(hwnd, mode, winapi.Rect{Left: pos.X, Top: pos.Y, Right: pos.X + width, Bottom: pos.Y + height}, w.savePos)
+	r := winapi.Rect{Left: pos.X, Top: pos.Y, Right: pos.X + width, Bottom: pos.Y + height}
+	winapi.MakeWidget(hwnd, mode, r, int32(float64(snap)*scale), w.savePos)
 
 	_ = wv.Bind("gsReady", func() {
 		w.mu.Lock()
@@ -188,6 +190,20 @@ func (w *Widget) SetMode(mode winapi.WidgetMode) {
 	w.mu.Unlock()
 	if wv != nil {
 		wv.Dispatch(func() { winapi.SetWidgetMode(hwnd, mode) })
+	}
+}
+
+// SetSnap changes the edge-snapping distance (px at 100% scale, 0 = off).
+func (w *Widget) SetSnap(px int) {
+	if px < 0 {
+		px = 0
+	}
+	w.mu.Lock()
+	w.snap = px
+	hwnd := w.hwnd
+	w.mu.Unlock()
+	if hwnd != 0 {
+		winapi.SetWidgetSnap(hwnd, int32(float64(px)*winapi.SystemScale()))
 	}
 }
 

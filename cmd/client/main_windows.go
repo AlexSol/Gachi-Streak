@@ -146,6 +146,7 @@ func (a *app) onReady() {
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
 
 	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.widgetClosed)
+	a.widget.SetSnap(a.cfg.WidgetSnapPx)
 	if a.cfg.ShowWidget {
 		go a.widget.Show(winapi.WidgetMode(a.cfg.NormalizedWidgetMode()))
 	}
@@ -279,6 +280,7 @@ func (a *app) reload(force bool) {
 	log.Println("config reloaded, error:", a.cfgErr)
 	a.updateGitItem()
 	if a.widget != nil { // apply widget settings edited by hand
+		a.widget.SetSnap(a.cfg.WidgetSnapPx)
 		mode := winapi.WidgetMode(a.cfg.NormalizedWidgetMode())
 		switch open := a.widget.IsOpen(); {
 		case a.cfg.ShowWidget && !open:

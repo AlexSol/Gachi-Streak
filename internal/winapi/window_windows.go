@@ -51,6 +51,7 @@ const (
 	swpShowWindow   = 0x0040
 
 	wmWindowPosChanging = 0x0046
+	wmMoving            = 0x0216
 	wmExitSizeMove      = 0x0232
 	wmNCLButtonDown     = 0x00A1
 	htCaption           = 2
@@ -60,9 +61,6 @@ const (
 	dwmwaWindowCornerPreference = 33
 	dwmwcpRound                 = 2
 )
-
-// Rect is a screen rectangle in physical pixels.
-type Rect struct{ Left, Top, Right, Bottom int32 }
 
 type windowPos struct {
 	hwnd            uintptr
@@ -84,6 +82,7 @@ const (
 type subclass struct {
 	old     uintptr
 	mode    WidgetMode
+	snap    int32 // edge-snapping distance in px, 0 = off
 	onMoved func(Rect)
 }
 
@@ -108,6 +107,13 @@ func widgetWndProc(hwnd, msg, wp, lp uintptr) uintptr {
 			pos := *(**windowPos)(unsafe.Pointer(&lp))
 			pos.hwndInsertAfter = hwndBottom
 			pos.flags &^= swpNoZOrder
+		}
+	case wmMoving:
+		if s.snap > 0 {
+			// lp is a *RECT with the proposed position, owned by Windows for this call
+			r := *(**Rect)(unsafe.Pointer(&lp))
+			area := WorkArea((r.Left+r.Right)/2, (r.Top+r.Bottom)/2)
+			*r = SnapRect(*r, area, s.snap)
 		}
 	case wmExitSizeMove:
 		if s.onMoved != nil {
@@ -168,7 +174,7 @@ func WindowRect(hwnd uintptr) Rect {
 // MakeWidget turns a normal top-level window into a borderless tool window
 // (no taskbar button, no Alt+Tab), places it and applies the mode.
 // onMoved is called after the user finishes dragging it.
-func MakeWidget(hwnd uintptr, mode WidgetMode, r Rect, onMoved func(Rect)) {
+func MakeWidget(hwnd uintptr, mode WidgetMode, r Rect, snap int32, onMoved func(Rect)) {
 	procSetWindowLongPtrW.Call(hwnd, gwlStyle, wsPopup|wsVisible|wsClipChild)
 	procSetWindowLongPtrW.Call(hwnd, gwlExStyle, wsExToolWin)
 
@@ -179,7 +185,7 @@ func MakeWidget(hwnd uintptr, mode WidgetMode, r Rect, onMoved func(Rect)) {
 
 	old, _, _ := procGetWindowLongPtrW.Call(hwnd, gwlpWndProc)
 	subMu.Lock()
-	subs[hwnd] = &subclass{old: old, mode: mode, onMoved: onMoved}
+	subs[hwnd] = &subclass{old: old, mode: mode, snap: snap, onMoved: onMoved}
 	subMu.Unlock()
 	procSetWindowLongPtrW.Call(hwnd, gwlpWndProc, subProc)
 
@@ -199,6 +205,15 @@ func SetWidgetMode(hwnd uintptr, mode WidgetMode) {
 		procSetWindowPos.Call(hwnd, hwndNoTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate)
 	}
 	procSetWindowPos.Call(hwnd, zFor(mode), 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate)
+}
+
+// SetWidgetSnap changes the edge-snapping distance live (0 = off).
+func SetWidgetSnap(hwnd uintptr, px int32) {
+	subMu.Lock()
+	if s := subs[hwnd]; s != nil {
+		s.snap = px
+	}
+	subMu.Unlock()
 }
 
 // ForgetWidget drops the subclass bookkeeping once the window is gone.

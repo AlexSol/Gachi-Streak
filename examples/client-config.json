@@ -15,5 +15,6 @@
   "share_activity": true,
   "activity_ignore": ["Telegram.exe", "KeePassXC.exe"],
   "show_widget": true,
-  "widget_mode": "desktop"
+  "widget_mode": "desktop",
+  "widget_snap_px": 20
 }

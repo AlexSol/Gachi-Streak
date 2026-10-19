@@ -83,6 +83,7 @@ WebView2 через `github.com/jchv/go-webview2`, без CGO. Вікно пра
 
 - Режим `desktop`: вікно сабкласиться, і на кожен `WM_WINDOWPOSCHANGING` йому ставиться `HWND_BOTTOM`, тож воно завжди лишається під іншими вікнами.
 - Режим `overlay`: `HWND_TOPMOST`.
+- Прилипання: на `WM_MOVING` запропонований прямокутник проганяється через `SnapRect` (чиста функція з тестами) проти робочої області монітора, на якому центр вікна.
 - Перетягування: JS викликає `gsDrag` → `ReleaseCapture` + `WM_NCLBUTTONDOWN(HTCAPTION)`. Позиція зберігається на `WM_EXITSIZEMOVE`.
 - Дані: після кожного опитування трей викликає `Dispatch(Eval("gsUpdate(json)"))`. Таймери віджет рахує сам щосекунди.
 

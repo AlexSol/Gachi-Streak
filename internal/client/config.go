@@ -49,6 +49,8 @@ type Config struct {
 	// "desktop" (a gadget under all windows) or "overlay" (always on top, like Discord).
 	ShowWidget bool   `json:"show_widget"`
 	WidgetMode string `json:"widget_mode"`
+	// Stick the widget to screen edges when dragged closer than this (px at 100% scale; 0 = off).
+	WidgetSnapPx int `json:"widget_snap_px"`
 }
 
 // DefaultConfig returns a config with defaults filled in, relative to dataDir.
@@ -69,6 +71,7 @@ func DefaultConfig(dataDir string) Config {
 		ActivityIgnore:    []string{},
 		ShowWidget:        true,
 		WidgetMode:        WidgetModeDesktop,
+		WidgetSnapPx:      20,
 	}
 }
 
