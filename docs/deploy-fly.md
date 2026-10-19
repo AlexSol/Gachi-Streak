@@ -2,6 +2,8 @@
 
 Вартість: машина `shared-cpu-1x` / 256 MB, яка працює постійно, + volume 1 GB — приблизно $2–3 на місяць.
 
+> **Через Launch UI (дашборд Fly + GitHub):** працює так само — Fly бере `Dockerfile` з кореня репо і `fly.toml`. Якщо Fly пропонує «merge new files», можна злити: він лише переформатовує `fly.toml`.
+
 ## 1. Встановити flyctl і залогінитись (PowerShell)
 
 ```powershell

@@ -7,7 +7,7 @@ app = 'gachi-streak'
 primary_region = 'ams'
 
 [build]
-  dockerfile = 'deploy/Dockerfile'
+  dockerfile = 'Dockerfile'
 
 [env]
   GACHI_ADDR = ':8080'

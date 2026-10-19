@@ -1,4 +1,4 @@
-# docker build -f deploy/Dockerfile -t gachi-server .
+# docker build -t gachi-server .
 # docker run -d -p 8080:8080 -v gachi-data:/data --name gachi gachi-server
 FROM golang:1.24 AS build
 # Let Go fetch a newer toolchain if a dependency requires it.

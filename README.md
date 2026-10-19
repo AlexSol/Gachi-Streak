@@ -55,7 +55,7 @@ go build -o bin\gachi-server.exe .\cmd\server
 Або в Docker:
 
 ```bash
-docker build -f deploy/Dockerfile -t gachi-server .
+docker build -t gachi-server .
 docker run -d -p 8080:8080 -v gachi-data:/data --name gachi gachi-server
 docker exec gachi /gachi-server user add -name alex -tz Europe/Lisbon
 ```
