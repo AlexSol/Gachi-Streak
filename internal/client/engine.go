@@ -50,6 +50,11 @@ type Engine struct {
 	StatePath string
 	State     LocalState
 	Rand      *rand.Rand
+
+	// Demo is true while a punishment was forced from the demo menu.
+	// Server polls do not touch the desktop until the demo is stopped.
+	// Kept in memory only: after a restart the real state wins.
+	Demo Mode
 }
 
 // NewEngine loads local state from dataDir.
@@ -84,6 +89,9 @@ func modeFor(state string) Mode {
 
 // Apply reacts to the caller's own status. Returns whether anything changed.
 func (e *Engine) Apply(me api.UserStatus, now time.Time) (bool, error) {
+	if e.Demo != "" {
+		return false, nil // demo owns the desktop right now
+	}
 	want := modeFor(me.State)
 	changed := false
 
@@ -138,6 +146,54 @@ func (e *Engine) Apply(me api.UserStatus, now time.Time) (bool, error) {
 		return true, e.save()
 	}
 	return false, nil
+}
+
+// DemoShow forces a punishment mode regardless of the server: sets a
+// random picture of that mode and plays its sound. Calling it again with
+// the same mode shows the next picture.
+func (e *Engine) DemoShow(m Mode, now time.Time) error {
+	if m != ModeWarning && m != ModeFailed {
+		return e.DemoStop()
+	}
+	if e.State.Mode == ModeNone {
+		if err := e.Desk.BackupWallpaper(); err != nil {
+			return err
+		}
+	}
+	img, err := e.pickImage(m)
+	if err != nil {
+		return err
+	}
+	if err := e.Desk.SetWallpaper(img); err != nil {
+		return err
+	}
+	e.DemoSound(m)
+	e.Demo = m
+	e.State.Mode, e.State.Image, e.State.SetAt = m, img, now
+	return e.save()
+}
+
+// DemoSound plays a random sound of a mode without touching the wallpaper.
+func (e *Engine) DemoSound(m Mode) {
+	spec := e.Cfg.WarningSound
+	if m == ModeFailed {
+		spec = e.Cfg.FailedSound
+	}
+	e.Desk.PlaySound(ResolveSound(spec, e.Rand))
+}
+
+// DemoStop ends the demo: restores the wallpaper; the next poll applies
+// the real server state again.
+func (e *Engine) DemoStop() error {
+	e.Demo = ""
+	if e.State.Mode == ModeNone {
+		return nil
+	}
+	if err := e.Desk.RestoreWallpaper(); err != nil {
+		return err
+	}
+	e.State.Mode, e.State.Image = ModeNone, ""
+	return e.save()
 }
 
 // Snooze puts the original wallpaper back and leaves the desktop alone

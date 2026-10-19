@@ -44,6 +44,7 @@ type app struct {
 	snoozeItem *systray.MenuItem
 	autoItem   *systray.MenuItem
 	gitItem    *systray.MenuItem
+	demoItem   *systray.MenuItem
 	localGit   client.LocalGit
 }
 
@@ -122,6 +123,15 @@ func (a *app) onReady() {
 	refreshItem := systray.AddMenuItem("🔄 Оновити", "")
 	a.snoozeItem = systray.AddMenuItem("🙈 Пауза 15 хв (повернути шпалери)", "Наприклад, для демонстрації екрана")
 	systray.AddSeparator()
+	a.demoItem = systray.AddMenuItem("🧪 Демо", "Примусово показати покарання, не чекаючи дедлайну")
+	demoWarn := a.demoItem.AddSubMenuItem("⚠️ Показати попередження", "Шпалери + звук попередження (ще раз — наступна картинка)")
+	demoFail := a.demoItem.AddSubMenuItem("💀 Показати провал", "Шпалери + звук провалу (ще раз — наступна картинка)")
+	a.demoItem.AddSeparator()
+	demoSndWarn := a.demoItem.AddSubMenuItem("🔊 Звук попередження", "Тільки звук")
+	demoSndFail := a.demoItem.AddSubMenuItem("🔊 Звук провалу", "Тільки звук")
+	a.demoItem.AddSeparator()
+	demoStop := a.demoItem.AddSubMenuItem("⏹ Вимкнути демо", "Повернути шпалери і реальний стан із сервера")
+	systray.AddSeparator()
 	imagesItem := systray.AddMenuItem("📂 Папка з картинками", "")
 	configItem := systray.AddMenuItem("⚙️ Відкрити конфіг", "Після змін перезапусти програму")
 	a.autoItem = systray.AddMenuItemCheckbox("Запускати з Windows", "", winapi.AutostartEnabled(appName))
@@ -138,6 +148,16 @@ func (a *app) onReady() {
 				go a.ping()
 			case <-refreshItem.ClickedCh:
 				a.kick()
+			case <-demoWarn.ClickedCh:
+				go a.demo(client.ModeWarning)
+			case <-demoFail.ClickedCh:
+				go a.demo(client.ModeFailed)
+			case <-demoSndWarn.ClickedCh:
+				go a.locked(func() { a.engine.DemoSound(client.ModeWarning) })
+			case <-demoSndFail.ClickedCh:
+				go a.locked(func() { a.engine.DemoSound(client.ModeFailed) })
+			case <-demoStop.ClickedCh:
+				go a.demo(client.ModeNone)
 			case <-a.snoozeItem.ClickedCh:
 				go a.snooze()
 			case <-imagesItem.ClickedCh:
@@ -247,7 +267,11 @@ func (a *app) checkLocalGit(ctx context.Context, me api.UserStatus) (api.UserSta
 
 func (a *app) render(st api.StatusResponse) {
 	me, _ := client.FindMe(st)
-	systray.SetIcon(client.StateIcon(me.State))
+	if a.engine.Demo != "" {
+		systray.SetIcon(client.StateIcon(string(a.engine.Demo)))
+	} else {
+		systray.SetIcon(client.StateIcon(me.State))
+	}
 	systray.SetTooltip(client.Tooltip(me))
 	a.statusItem.SetTitle("Оновлено о " + time.Now().Format("15:04"))
 	for i, it := range a.userItems {
@@ -282,6 +306,40 @@ func (a *app) ping() {
 		return
 	}
 	a.kick()
+}
+
+func (a *app) locked(f func()) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	f()
+}
+
+// demo forces a punishment mode (or stops the demo with ModeNone).
+func (a *app) demo(m client.Mode) {
+	a.mu.Lock()
+	var err error
+	if m == client.ModeNone {
+		err = a.engine.DemoStop()
+	} else {
+		err = a.engine.DemoShow(m, time.Now())
+	}
+	a.mu.Unlock()
+	if err != nil {
+		log.Println("demo:", err)
+		winapi.MessageBox(title, "Демо: "+err.Error(), winapi.MBError)
+		return
+	}
+	switch m {
+	case client.ModeWarning:
+		a.demoItem.SetTitle("🧪 Демо: ⚠️ попередження (активне)")
+		systray.SetIcon(client.StateIcon("warning"))
+	case client.ModeFailed:
+		a.demoItem.SetTitle("🧪 Демо: 💀 провал (активне)")
+		systray.SetIcon(client.StateIcon("failed"))
+	default:
+		a.demoItem.SetTitle("🧪 Демо")
+		a.kick() // back to the real state
+	}
 }
 
 func (a *app) snooze() {

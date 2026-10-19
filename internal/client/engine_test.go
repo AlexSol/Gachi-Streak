@@ -128,3 +128,39 @@ func TestFormatLeft(t *testing.T) {
 		t.Fatal(s)
 	}
 }
+
+func TestDemoMode(t *testing.T) {
+	e, d := newTestEngine(t)
+	t0 := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+
+	if err := e.DemoShow(ModeFailed, t0); err != nil {
+		t.Fatal(err)
+	}
+	first := d.wallpaper
+	if d.backups != 1 || len(d.sounds) != 1 || e.Demo != ModeFailed {
+		t.Fatalf("demo failed: %+v demo=%q", d, e.Demo)
+	}
+	// server says "safe", but the demo must not be overridden
+	if ch, _ := e.Apply(api.UserStatus{State: "safe"}, t0.Add(time.Minute)); ch || d.wallpaper != first {
+		t.Fatal("poll must not override demo")
+	}
+	// same mode again → next picture, no second backup
+	e.DemoShow(ModeFailed, t0.Add(2*time.Minute))
+	if d.wallpaper == first || d.backups != 1 {
+		t.Fatalf("expected a different picture without re-backup: %+v", d)
+	}
+	// switch to warning while in demo
+	e.DemoShow(ModeWarning, t0.Add(3*time.Minute))
+	if e.State.Mode != ModeWarning {
+		t.Fatal("demo warning not applied")
+	}
+	// stop → restore, then real polls work again
+	e.DemoStop()
+	if d.wallpaper != "original" || e.Demo != "" {
+		t.Fatalf("demo stop: %+v", d)
+	}
+	e.Apply(api.UserStatus{State: "warning"}, t0.Add(4*time.Minute))
+	if e.State.Mode != ModeWarning {
+		t.Fatal("real state must apply after demo")
+	}
+}
