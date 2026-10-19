@@ -24,6 +24,10 @@ import (
 	"github.com/AlexSol/gachi-streak/internal/winapi"
 )
 
+// version is the release version; set it at build time with
+// -ldflags "-X main.version=1.2.3" (make client-win VERSION=1.2.3).
+var version = "0.1.0"
+
 const (
 	appName   = "GachiStreak"
 	title     = "Gachi Streak"
@@ -49,6 +53,12 @@ type app struct {
 	statsItem  *systray.MenuItem
 	statsRows  []*systray.MenuItem
 	achItem    *systray.MenuItem
+	netStats   *client.NetStats
+	netItem    *systray.MenuItem
+	netRows    []*systray.MenuItem // summary lines
+	netEpRows  []*systray.MenuItem // per endpoint
+	netLogItem *systray.MenuItem
+	netCopy    *systray.MenuItem
 	tracker    *client.Tracker
 	widget     *Widget
 	widgetItem *systray.MenuItem
@@ -80,11 +90,14 @@ func main() {
 		fatal(err)
 	}
 	setupLog(dataDir)
+	log.Println("start", title, client.ReadBuildInfo(version))
 
 	a := &app{
 		cfgPath: filepath.Join(dataDir, "config.json"),
 		dataDir: dataDir,
 		refresh: make(chan struct{}, 1),
+		// Counts every request since the agent started, across config reloads.
+		netStats: client.NewNetStats(time.Now()),
 	}
 	created := a.loadConfig()
 	switch {
@@ -123,6 +136,23 @@ func (a *app) onReady() {
 		it.Hide()
 		a.statsRows = append(a.statsRows, it)
 	}
+	a.netItem = systray.AddMenuItem("📡 Мережа", "Запити до сервера, помилки й трафік від запуску")
+	for i := 0; i < 8; i++ {
+		it := a.netItem.AddSubMenuItem("", "")
+		it.Disable()
+		a.netRows = append(a.netRows, it)
+	}
+	a.netItem.AddSeparator()
+	for i := 0; i < 8; i++ {
+		it := a.netItem.AddSubMenuItem("", "Запитів · помилок · середня відповідь")
+		it.Disable()
+		it.Hide()
+		a.netEpRows = append(a.netEpRows, it)
+	}
+	a.netItem.AddSeparator()
+	a.netCopy = a.netItem.AddSubMenuItem(netCopyTitle, "Повний звіт у буфер обміну — встав у чат адміну")
+	a.netLogItem = a.netItem.AddSubMenuItem("📝 Записати звіт у client.log", "Повний звіт, зручно переслати адміну")
+	a.renderNet()
 	a.achItem = systray.AddMenuItem("🏆 Ачівки", "Відкрити сторінку ачівок у браузері")
 	systray.AddSeparator()
 	a.pingItem = systray.AddMenuItem("✅ Я сьогодні вчив Go (відмітити)", "POST /ping")
@@ -148,6 +178,21 @@ func (a *app) onReady() {
 	reloadItem := systray.AddMenuItem("♻️ Перечитати конфіг", "")
 	a.autoItem = systray.AddMenuItemCheckbox("Запускати з Windows", "", winapi.AutostartEnabled(appName))
 	systray.AddSeparator()
+	bi := client.ReadBuildInfo(version)
+	infoItem := systray.AddMenuItem("ℹ️ Про програму", "Версія, збірка й посилання")
+	for _, line := range []string{
+		title + " " + bi.String(),
+		"Спільний щоденний стрік для двох, хто вчить Go.",
+		"Пропустив день — шпалери-покарання і стрік до нуля ♂",
+	} {
+		infoItem.AddSubMenuItem(line, "").Disable()
+	}
+	if !bi.Time.IsZero() {
+		infoItem.AddSubMenuItem("Коміт від "+bi.Time.Local().Format("2006-01-02 15:04")+" · "+bi.GoVersion, "").Disable()
+	}
+	infoItem.AddSeparator()
+	siteItem := infoItem.AddSubMenuItem("🌐 Відкрити сайт", "Веб-дашборд на твоєму сервері")
+	repoItem := infoItem.AddSubMenuItem("💻 Проєкт на GitHub", client.ProjectURL)
 	quitItem := systray.AddMenuItem("Вихід", "Шпалери-покарання НЕ знімаються при виході 😈")
 
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
@@ -167,6 +212,14 @@ func (a *app) onReady() {
 				go a.ping()
 			case <-refreshItem.ClickedCh:
 				a.kick()
+			case <-siteItem.ClickedCh:
+				a.openWeb()
+			case <-repoItem.ClickedCh:
+				_ = winapi.Open(client.ProjectURL)
+			case <-a.netCopy.ClickedCh:
+				go a.copyNetReport()
+			case <-a.netLogItem.ClickedCh:
+				go a.logNetReport()
 			case <-a.achItem.ClickedCh:
 				a.openWebAt("#/achievements")
 			case <-demoWarn.ClickedCh:
@@ -260,7 +313,7 @@ func (a *app) loadConfig() (created bool) {
 
 func (a *app) useConfig(cfg client.Config) {
 	a.cfg = cfg
-	a.api = client.NewAPIClient(cfg)
+	a.api = client.NewAPIClient(cfg, a.netStats)
 	a.localGit = client.LocalGit{Repos: cfg.LocalRepos, Authors: cfg.LocalAuthorEmails}
 	if a.tracker == nil {
 		a.tracker = client.NewTracker(filepath.Join(a.dataDir, "activity.json"), cfg.ActivityIgnore)
@@ -451,6 +504,7 @@ func (a *app) trackLoop() {
 	defer tick.Stop()
 	lastSave := time.Now()
 	for now := range tick.C {
+		a.renderNet()
 		if !a.cfg.ActivityTracking {
 			continue
 		}
@@ -466,6 +520,57 @@ func (a *app) trackLoop() {
 			lastSave = now
 		}
 	}
+}
+
+// renderNet refreshes the "📡 Мережа" submenu from the counters.
+func (a *app) renderNet() {
+	if a.netItem == nil {
+		return
+	}
+	snap := a.netStats.Snapshot(time.Now())
+	a.netItem.SetTitle(snap.Title())
+	lines := snap.Lines()
+	for i, it := range a.netRows {
+		if i < len(lines) {
+			it.SetTitle(shorten(lines[i], 90))
+			it.Show()
+		} else {
+			it.Hide()
+		}
+	}
+	for i, it := range a.netEpRows {
+		if i < len(snap.Endpoints) {
+			it.SetTitle(snap.Endpoints[i].Line())
+			it.Show()
+		} else {
+			it.Hide()
+		}
+	}
+}
+
+const netCopyTitle = "📋 Скопіювати звіт"
+
+func (a *app) netReport() string {
+	return a.netStats.Snapshot(time.Now()).Report(a.netStats.Started, a.cfg.ServerURL, client.ReadBuildInfo(version).String())
+}
+
+// copyNetReport puts the network report on the clipboard and confirms it
+// in the menu item for a few seconds.
+func (a *app) copyNetReport() {
+	if err := winapi.SetClipboardText(a.netReport()); err != nil {
+		log.Println("clipboard:", err)
+		a.netCopy.SetTitle("❌ Не вдалося скопіювати")
+	} else {
+		a.netCopy.SetTitle("✅ Скопійовано")
+	}
+	time.Sleep(3 * time.Second)
+	a.netCopy.SetTitle(netCopyTitle)
+}
+
+// logNetReport writes the network report to client.log and opens it.
+func (a *app) logNetReport() {
+	log.Print("network report\n" + strings.ReplaceAll(a.netReport(), "\r\n", "\n"))
+	_ = winapi.Open(filepath.Join(a.dataDir, "client.log"))
 }
 
 func (a *app) renderStats() {

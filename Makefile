@@ -57,8 +57,11 @@ server-linux: deps web
 server-linux-arm64: deps web
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o bin/gachi-server-linux-arm64 ./cmd/server
 
+# Client version shown in the tray (ℹ️ Про програму); the git hash is embedded by go build.
+VERSION ?= 0.1.0
+
 client-win: deps
-	GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -s -w" -o bin/gachi-client.exe ./cmd/client
+	GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui -s -w -X main.version=$(VERSION)" -o bin/gachi-client.exe ./cmd/client
 
 all: server server-win server-linux server-linux-arm64 client-win
 

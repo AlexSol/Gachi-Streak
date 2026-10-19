@@ -20,12 +20,17 @@ type APIClient struct {
 	HTTP    *http.Client
 }
 
-// NewAPIClient builds a client from config.
-func NewAPIClient(cfg Config) *APIClient {
+// NewAPIClient builds a client from config. Traffic is counted in stats
+// (nil = not counted).
+func NewAPIClient(cfg Config, stats *NetStats) *APIClient {
+	hc := &http.Client{Timeout: 15 * time.Second}
+	if stats != nil {
+		hc.Transport = stats.Transport()
+	}
 	return &APIClient{
 		BaseURL: strings.TrimRight(cfg.ServerURL, "/"),
 		Token:   cfg.Token,
-		HTTP:    &http.Client{Timeout: 15 * time.Second},
+		HTTP:    hc,
 	}
 }
 

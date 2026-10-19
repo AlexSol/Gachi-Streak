@@ -44,3 +44,16 @@ func TestInstallDefaultsAndResolveSound(t *testing.T) {
 		t.Fatalf("alias must pass through, got %q", s)
 	}
 }
+
+func TestBuildInfoFormat(t *testing.T) {
+	b := BuildInfo{Version: "0.1.0", Commit: "6d8a8df0123456789", Dirty: true}
+	if b.String() != "v0.1.0 (6d8a8df-dirty)" {
+		t.Fatalf("got %q", b.String())
+	}
+	if (BuildInfo{Version: "dev"}).String() != "vdev (невідомо)" {
+		t.Fatal("unknown commit")
+	}
+	if got := ReadBuildInfo("1.2.3"); got.Version != "1.2.3" || got.GoVersion == "" {
+		t.Fatalf("read %+v", got)
+	}
+}
