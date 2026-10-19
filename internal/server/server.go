@@ -49,6 +49,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /status", s.auth(http.HandlerFunc(s.handleStatus)))
 	mux.Handle("POST /presence", s.auth(http.HandlerFunc(s.handlePresence)))
 	mux.Handle("GET /activity", s.auth(http.HandlerFunc(s.handleActivity)))
+	mux.Handle("GET /progress", s.auth(http.HandlerFunc(s.handleProgress)))
 
 	// Browser sessions: an invite token is exchanged for an HttpOnly cookie.
 	mux.HandleFunc("POST /auth/login", s.handleLogin)

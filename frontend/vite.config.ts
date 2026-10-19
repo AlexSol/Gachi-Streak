@@ -19,6 +19,8 @@ export default defineConfig({
       "/status": api,
       "/ping": api,
       "/auth": api,
+      "/activity": api,
+      "/progress": api,
     },
   },
 });

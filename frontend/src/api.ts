@@ -61,6 +61,56 @@ export interface Me {
   timezone: string;
 }
 
+export interface RankDef {
+  level: number;
+  key: string;
+  name: string;
+  min_xp: number;
+  code: string;
+}
+
+export type AchCategory = "streak" | "go" | "tests" | "duo" | "shame" | "secret";
+
+export interface AchievementDef {
+  id: string;
+  category: AchCategory;
+  xp: number;
+  target: number;
+  detector: "auto" | "diff";
+  rule: string;
+  secret?: boolean;
+}
+
+export interface AchievementState {
+  id: string;
+  unlocked: boolean;
+  day?: string;
+  progress: number;
+  target: number;
+}
+
+export interface UserProgress {
+  name: string;
+  xp: number;
+  xp_days: number;
+  xp_achievements: number;
+  xp_penalty: number;
+  rank: number;
+  next_rank_xp?: number;
+  active_days: number;
+  failures: number;
+  achievements: AchievementState[];
+}
+
+export interface ProgressResponse {
+  me: string;
+  xp_per_day: number;
+  xp_per_failure: number;
+  ranks: RankDef[];
+  achievements: AchievementDef[];
+  users: UserProgress[];
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -85,6 +135,7 @@ export const api = {
   login: (token: string) => call<Me>("POST", "/auth/login", { token }),
   logout: () => call<void>("POST", "/auth/logout"),
   status: () => call<StatusResponse>("GET", "/status"),
+  progress: () => call<ProgressResponse>("GET", "/progress"),
   activity: (days = 7) => call<ActivityResponse>("GET", `/activity?days=${days}`),
   ping: (note: string) =>
     call<{ counted: boolean; user: UserStatus }>("POST", "/ping", { source: "manual", note }),

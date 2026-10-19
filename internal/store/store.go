@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -402,4 +403,48 @@ func (s *Store) LastEvent(ctx context.Context, userID int64, kind string) (Event
 	}
 	e.CreatedAt = parseTS(created)
 	return e, err
+}
+
+// ActivityHistory returns the distinct active days (ascending, user's local
+// days) and the UTC time of every recorded activity.
+func (s *Store) ActivityHistory(ctx context.Context, userID int64) (days []string, times []time.Time, err error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT day, created_at FROM activities WHERE user_id = ? ORDER BY created_at`, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	seen := map[string]bool{}
+	for rows.Next() {
+		var day, created string
+		if err := rows.Scan(&day, &created); err != nil {
+			return nil, nil, err
+		}
+		if !seen[day] {
+			seen[day] = true
+			days = append(days, day)
+		}
+		times = append(times, parseTS(created))
+	}
+	sort.Strings(days)
+	return days, times, rows.Err()
+}
+
+// EventDays returns the days of all events of a kind, ascending.
+func (s *Store) EventDays(ctx context.Context, userID int64, kind string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT day FROM events WHERE user_id = ? AND kind = ? ORDER BY day`, userID, kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
 }

@@ -318,3 +318,49 @@ func TestPresenceAndActivity(t *testing.T) {
 		}
 	}
 }
+
+func TestProgress(t *testing.T) {
+	f := setup(t)
+	if code := f.do(t, "GET", "/progress", "", "", nil); code != 401 {
+		t.Fatalf("anonymous progress: %d", code)
+	}
+	start := f.now
+	for i := 0; i < 7; i++ {
+		f.now = start.AddDate(0, 0, i)
+		f.do(t, "POST", "/ping", f.alex, `{"source":"manual"}`, nil)
+		f.do(t, "POST", "/ping", f.alex, `{"source":"manual"}`, nil) // same day again: no extra XP
+		if i < 3 {
+			f.do(t, "POST", "/ping", f.sasha, `{"source":"manual"}`, nil)
+		}
+	}
+
+	var resp api.ProgressResponse
+	if code := f.do(t, "GET", "/progress", f.sasha, "", &resp); code != 200 {
+		t.Fatalf("progress %d", code)
+	}
+	if resp.Me != "sasha" || len(resp.Ranks) != 7 || len(resp.Achievements) == 0 {
+		t.Fatalf("resp %+v", resp)
+	}
+	by := map[string]api.UserProgress{}
+	for _, u := range resp.Users {
+		by[u.Name] = u
+	}
+	alex := by["alex"]
+	// 7 days * 30 + streak_7 (30)
+	if alex.ActiveDays != 7 || alex.XP != 240 || alex.Rank != 2 || alex.NextRankXP != 300 {
+		t.Fatalf("alex %+v", alex)
+	}
+	unlocked := map[string]bool{}
+	for _, a := range alex.Achievements {
+		unlocked[a.ID] = a.Unlocked
+		if a.ID == "duo_7" && a.Progress != 3 {
+			t.Fatalf("duo_7 progress %+v", a)
+		}
+	}
+	if !unlocked["streak_7"] || unlocked["duo_7"] {
+		t.Fatalf("alex achievements %+v", unlocked)
+	}
+	if s := by["sasha"]; s.ActiveDays != 3 || s.XP != 90 || s.Rank != 1 {
+		t.Fatalf("sasha %+v", s)
+	}
+}
