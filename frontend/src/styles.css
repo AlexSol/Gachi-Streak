@@ -480,3 +480,26 @@ input {
 .bg-val { min-width: 44px; text-align: right; font-family: var(--mono); color: var(--text); }
 .bg-seg { display: flex; flex-wrap: wrap; gap: 6px; }
 .bg-seg button.on { background: color-mix(in srgb, var(--accent) 18%, transparent); border-color: var(--accent); color: var(--accent); }
+.bg-check input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: var(--accent); }
+
+/* login: form micro-animations (toggle "formFx") */
+@property --bg-ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.login.login-fx::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: conic-gradient(from var(--bg-ang), transparent 0 72%, var(--accent) 84%, var(--accent-2) 92%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: bg-spin 6s linear infinite;
+}
+@keyframes bg-spin { to { --bg-ang: 360deg; } }
+.login.login-shake { animation: bg-shake .45s; }
+@keyframes bg-shake {
+  10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-8px); } 40%, 60% { transform: translateX(8px); }
+}
+.login.login-opening { animation: bg-open .65s ease-in forwards; }
+@keyframes bg-open {
+  35% { transform: scale(1.03); filter: brightness(1.3); }
+  100% { transform: scale(.7); opacity: 0; filter: blur(6px) brightness(2); }
+}
+@media (prefers-reduced-motion: reduce) { .login.login-fx::after, .login.login-shake, .login.login-opening { animation: none; } }
