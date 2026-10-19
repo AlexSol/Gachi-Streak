@@ -1,25 +1,38 @@
 import { useState } from "preact/hooks";
 import { api, ApiError, type Me } from "./api";
 import type { Dict } from "./i18n";
-import { BgControls, DungeonBg, useBgPrefs } from "./DungeonBg";
+import { BgControls, DungeonBg, bgBoost, prefersReducedMotion, useBgPrefs } from "./DungeonBg";
 
 export function Login({ t, onLogin }: { t: Dict; onLogin: (me: Me) => void }) {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const bg = useBgPrefs();
+  const { prefs: bg, update: updateBg } = useBgPrefs();
+  // Form micro-animations: shake on a wrong token, "enter the portal" on success.
+  const [fx, setFx] = useState<"" | "shake" | "opening">("");
+  const animate = bg.formFx && !prefersReducedMotion();
 
   const submit = async (e: Event) => {
     e.preventDefault();
     if (!token.trim()) return;
     setBusy(true);
     setError("");
+    bgBoost();
     try {
-      onLogin(await api.login(token.trim()));
+      const me = await api.login(token.trim());
+      if (animate) {
+        setFx("opening");
+        bgBoost();
+        setTimeout(() => onLogin(me), 650);
+      } else onLogin(me);
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) setError(t.errLimited);
       else if (err instanceof ApiError && err.status === 401) setError(t.errInvalid);
       else setError(t.errNetwork);
+      if (animate) {
+        setFx("");
+        requestAnimationFrame(() => setFx("shake"));
+      }
     } finally {
       setBusy(false);
     }
@@ -28,7 +41,10 @@ export function Login({ t, onLogin }: { t: Dict; onLogin: (me: Me) => void }) {
   return (
     <>
     <DungeonBg effect={bg.effect} strength={bg.strength} />
-    <section class="card login">
+    <section
+      class={"card login" + (bg.formFx ? " login-fx" : "") + (fx ? " login-" + fx : "")}
+      onAnimationEnd={(e) => fx === "shake" && e.target === e.currentTarget && setFx("")}
+    >
       <div class="tape" aria-hidden="true" />
       <p class="eyebrow">{t.tagline}</p>
       <h1>{t.loginTitle}</h1>
@@ -56,7 +72,7 @@ export function Login({ t, onLogin }: { t: Dict; onLogin: (me: Me) => void }) {
         </button>
       </form>
     </section>
-    <BgControls t={t} effect={bg.effect} strength={bg.strength} update={bg.update} />
+    <BgControls t={t} prefs={bg} update={updateBg} />
     </>
   );
 }
