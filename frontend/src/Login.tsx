@@ -1,11 +1,13 @@
 import { useState } from "preact/hooks";
 import { api, ApiError, type Me } from "./api";
 import type { Dict } from "./i18n";
+import { BgControls, DungeonBg, useBgPrefs } from "./DungeonBg";
 
 export function Login({ t, onLogin }: { t: Dict; onLogin: (me: Me) => void }) {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const bg = useBgPrefs();
 
   const submit = async (e: Event) => {
     e.preventDefault();
@@ -24,6 +26,8 @@ export function Login({ t, onLogin }: { t: Dict; onLogin: (me: Me) => void }) {
   };
 
   return (
+    <>
+    <DungeonBg effect={bg.effect} strength={bg.strength} />
     <section class="card login">
       <div class="tape" aria-hidden="true" />
       <p class="eyebrow">{t.tagline}</p>
@@ -52,5 +56,7 @@ export function Login({ t, onLogin }: { t: Dict; onLogin: (me: Me) => void }) {
         </button>
       </form>
     </section>
+    <BgControls t={t} effect={bg.effect} strength={bg.strength} update={bg.update} />
+    </>
   );
 }
