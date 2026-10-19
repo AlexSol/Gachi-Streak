@@ -70,13 +70,22 @@ XP не опускається нижче нуля. Ранг = сумарний 
 
 На період MVP на кожній відкритій картці є кнопки «▶ …», щоб переглянути будь-який ефект (`DEBUG_EFFECTS` у `frontend/src/Progress.tsx`).
 
-## Локальне тестування
+## Відкрити або скинути ачівки (тести, демо)
+
+Локально:
 
 ```bash
 make unlock-all NAME=alex   # відкрити всі ачівки (без NAME — усім; DB=шлях, за замовчуванням gachi.db)
 make lock-all NAME=alex     # стерти збережені; ті, умови яких виконані, повернуться на наступному проході
 ```
 
-Команди `gachi-server dev …` є лише в збірці з `-tags dev` і працюють напряму з файлом бази. HTTP-ендпоінта для них немає, і в релізний бінарник (Dockerfile, `make server*`) вони не потрапляють.
+На Fly.io:
+
+```bash
+fly ssh console -a gachi-streak -C "/gachi-server achievements unlock -db /data/gachi.db"              # усім
+fly ssh console -a gachi-streak -C "/gachi-server achievements lock -db /data/gachi.db -name alex"   # одному
+```
+
+Команда `gachi-server achievements unlock|lock` працює напряму з файлом бази (на Fly це `/data/gachi.db`; `-db` вказано явно, бо SSH-сесія може не мати змінних образу), тож її можна запускати, поки сервер працює. HTTP-ендпоінта для неї немає, тож викликати її може лише той, хто має доступ до сервера. Відкриті ачівки з'являються у вебі запакованими.
 
 Тексти ачівок — у `frontend/src/i18n.ts` (ключ = `id`).

@@ -5,7 +5,7 @@
 //	gachi-server user list
 //	gachi-server user token  -name alex          (issue a new token)
 //	gachi-server user github -name alex -github AlexSol [-repo ...]
-//	gachi-server dev ...                          (only in -tags dev builds, see dev.go)
+//	gachi-server achievements unlock|lock [-name alex]  (open / reset achievements)
 package main
 
 import (
@@ -39,12 +39,8 @@ func main() {
 		err = cmdServe(os.Args[2:])
 	case "user":
 		err = cmdUser(os.Args[2:])
-	case "dev":
-		if cmdDev == nil {
-			err = errors.New("dev commands are not in this build; run them locally: go run -tags dev ./cmd/server dev ...")
-		} else {
-			err = cmdDev(os.Args[2:])
-		}
+	case "achievements":
+		err = cmdAchievements(os.Args[2:])
 	default:
 		usage()
 		os.Exit(2)
@@ -55,10 +51,6 @@ func main() {
 	}
 }
 
-// cmdDev is set by dev.go, which only exists in -tags dev builds, so
-// release binaries (Dockerfile, make server*) can't run dev commands.
-var cmdDev func(args []string) error
-
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   gachi-server serve [-addr :8080] [-db gachi.db] [-warn 5h] [-github-interval 10m]
@@ -66,6 +58,7 @@ func usage() {
   gachi-server user list
   gachi-server user token  -name NAME
   gachi-server user github -name NAME -github LOGIN [-repo owner/repo]
+  gachi-server achievements unlock|lock [-name NAME]   (no -name = every user)
 
 env: GACHI_DB, GACHI_ADDR, GITHUB_TOKEN (optional, raises GitHub API limits)`)
 }

@@ -28,17 +28,17 @@ web-dev: web-deps
 run: deps
 	go run ./cmd/server serve
 
-# --- Local testing (dev-only commands, never in release binaries) ---
+# --- Achievements for testing (on prod: fly ssh console -C "/gachi-server achievements unlock") ---
 # make unlock-all NAME=alex   (no NAME = every user; DB=path, default gachi.db)
 DB ?= gachi.db
 # Only NAME from the command line: WSL exports NAME=<hostname>.
 user_flag = $(if $(filter command line,$(origin NAME)),-name $(NAME))
 
 unlock-all:
-	go run -tags dev ./cmd/server dev unlock-all -db $(DB) $(user_flag)
+	go run ./cmd/server achievements unlock -db $(DB) $(user_flag)
 
 lock-all:
-	go run -tags dev ./cmd/server dev lock-all -db $(DB) $(user_flag)
+	go run ./cmd/server achievements lock -db $(DB) $(user_flag)
 
 # Server + Vite dev server together; open http://localhost:5173/app/
 dev:

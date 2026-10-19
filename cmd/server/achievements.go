@@ -1,11 +1,10 @@
-//go:build dev
-
-// Local-only commands for testing achievements. Built only with -tags dev
-// (make unlock-all / make lock-all), never into release binaries, and they
-// work on the database file directly: there is no HTTP endpoint for them.
+// Admin commands for achievements: open or reset them for testing and demos.
+// They work on the database file directly (safe while the server runs: WAL
+// + busy timeout), so only someone with shell access to the server, e.g.
+// `fly ssh console`, can use them; there is no HTTP endpoint.
 //
-//	gachi-server dev unlock-all [-name NAME] [-db gachi.db]
-//	gachi-server dev lock-all   [-name NAME] [-db gachi.db]
+//	gachi-server achievements unlock [-name NAME] [-db gachi.db]
+//	gachi-server achievements lock   [-name NAME] [-db gachi.db]
 package main
 
 import (
@@ -20,13 +19,11 @@ import (
 	"github.com/AlexSol/gachi-streak/internal/streak"
 )
 
-func init() { cmdDev = runDev }
-
-func runDev(args []string) error {
-	if len(args) < 1 || (args[0] != "unlock-all" && args[0] != "lock-all") {
-		return errors.New("usage: gachi-server dev unlock-all|lock-all [-name NAME] [-db gachi.db]")
+func cmdAchievements(args []string) error {
+	if len(args) < 1 || (args[0] != "unlock" && args[0] != "lock") {
+		return errors.New("usage: gachi-server achievements unlock|lock [-name NAME] [-db gachi.db]")
 	}
-	fs := flag.NewFlagSet("dev "+args[0], flag.ExitOnError)
+	fs := flag.NewFlagSet("achievements "+args[0], flag.ExitOnError)
 	dbPath := fs.String("db", env("GACHI_DB", "gachi.db"), "SQLite database file")
 	name := fs.String("name", "", "user name (empty = every user)")
 	fs.Parse(args[1:])
@@ -50,7 +47,7 @@ func runDev(args []string) error {
 			continue
 		}
 		matched = true
-		if args[0] == "lock-all" {
+		if args[0] == "lock" {
 			n, err := repo.DeleteByUser(ctx, u.ID)
 			if err != nil {
 				return err
