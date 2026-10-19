@@ -111,6 +111,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 ## API
 
 `GET /` — сторінка «в розробці» для браузера (українська або англійська, за мовою браузера/системи).
+Невідомі адреси: у браузері — тематична сторінка 404 (теж двомовна), для API-клієнтів — JSON `{"error":"not found"}`.
 
 
 Усі запити, окрім `/healthz`, з заголовком `Authorization: Bearer <token>`.

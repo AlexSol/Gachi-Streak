@@ -40,7 +40,7 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.Handle("POST /ping", s.auth(http.HandlerFunc(s.handlePing)))
 	mux.Handle("GET /status", s.auth(http.HandlerFunc(s.handleStatus)))
-	return s.logRequests(mux)
+	return s.logRequests(s.withNotFound(mux))
 }
 
 func (s *Server) auth(next http.Handler) http.Handler {

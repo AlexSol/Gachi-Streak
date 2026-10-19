@@ -218,10 +218,54 @@ func TestIndexPage(t *testing.T) {
 			t.Fatal("both language blocks must be present for client-side switch")
 		}
 	}
-	// unknown paths are not swallowed by the landing page
-	resp, _ := http.Get(f.http.URL + "/nope")
-	resp.Body.Close()
-	if resp.StatusCode != 404 {
-		t.Fatalf("/nope: %d", resp.StatusCode)
+}
+
+func TestNotFound(t *testing.T) {
+	f := setup(t)
+	get := func(path, accept, lang string) (*http.Response, string) {
+		req, _ := http.NewRequest("GET", f.http.URL+path, nil)
+		if accept != "" {
+			req.Header.Set("Accept", accept)
+		}
+		if lang != "" {
+			req.Header.Set("Accept-Language", lang)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return resp, string(b)
+	}
+
+	// Browser → themed HTML page, path is HTML-escaped.
+	resp, body := get("/<script>x", "text/html,application/xhtml+xml", "uk-UA,uk")
+	if resp.StatusCode != 404 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+		t.Fatalf("browser 404: %d %s", resp.StatusCode, resp.Header.Get("Content-Type"))
+	}
+	if !strings.Contains(body, `<html lang="uk">`) || !strings.Contains(body, "заблукав у dungeon") {
+		t.Fatal("themed Ukrainian 404 expected")
+	}
+	if strings.Contains(body, "<script>x") {
+		t.Fatal("path must be escaped")
+	}
+
+	// API client → JSON.
+	resp, body = get("/nope", "application/json", "")
+	if resp.StatusCode != 404 || !strings.Contains(body, `"not found"`) {
+		t.Fatalf("api 404: %d %s", resp.StatusCode, body)
+	}
+
+	// Wrong method on a real route stays 405, not 404.
+	resp, _ = get("/ping", "text/html", "")
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("GET /ping: %d", resp.StatusCode)
+	}
+
+	// Real routes are untouched.
+	resp, body = get("/healthz", "text/html", "")
+	if resp.StatusCode != 200 || body != "ok" {
+		t.Fatalf("healthz: %d %q", resp.StatusCode, body)
 	}
 }

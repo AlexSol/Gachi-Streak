@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>404 ♂ Gachi Streak</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♂</text></svg>">
+<style>
+  :root {
+    --bg: #0b0708; --panel: #150f11; --text: #f1ece9; --muted: #a99c97;
+    --red: #ff3b3b; --accent: #ff8c1a; --accent2: #c43cff; --line: #3a2a2e;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background:
+      radial-gradient(900px 500px at 50% -5%, #4a0d0d 0%, transparent 60%),
+      radial-gradient(700px 400px at -10% 110%, #2a0f33 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid; place-items: center; padding: 24px 16px; min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .rain { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .rain span {
+    position: absolute; top: -10vh; color: #ff3b3b22; font-size: 28px;
+    animation: fall linear infinite;
+  }
+  @keyframes fall { to { transform: translateY(120vh) rotate(360deg); } }
+
+  .card {
+    position: relative; z-index: 1; width: min(680px, 100%);
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    border: 1px solid var(--line); border-radius: 18px;
+    padding: 34px 30px 26px; box-shadow: 0 20px 60px #000a;
+    overflow: hidden;
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 10px;
+    background: repeating-linear-gradient(-45deg, var(--red) 0 14px, #111 14px 28px);
+  }
+  .code {
+    font-weight: 900; font-size: clamp(72px, 20vw, 140px); line-height: .95;
+    letter-spacing: -2px; margin: 6px 0 0;
+    color: var(--red); text-shadow: 0 0 30px #ff3b3b55;
+    animation: glitch 3.2s infinite steps(1);
+  }
+  .code b { color: var(--accent); font-weight: 900; }
+  @keyframes glitch {
+    0%, 92%, 100% { transform: none; text-shadow: 0 0 30px #ff3b3b55; }
+    93% { transform: translate(-3px, 1px); text-shadow: 3px 0 var(--accent2), -3px 0 var(--accent); }
+    95% { transform: translate(3px, -1px); text-shadow: -3px 0 var(--accent2), 3px 0 var(--accent); }
+    97% { transform: translate(-1px, 0); }
+  }
+  .tag { color: var(--accent2); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; font-size: 13px; margin-top: 10px; }
+  h1 { margin: 6px 0 2px; font-size: clamp(22px, 5vw, 30px); }
+  p { color: var(--muted); margin: 12px 0; }
+  pre {
+    margin: 18px 0; padding: 14px 16px; border-radius: 10px;
+    background: #000c; border: 1px solid var(--line);
+    font: 13.5px/1.6 var(--mono); color: #ddd; white-space: pre; overflow-x: auto;
+  }
+  pre .err { color: var(--red); font-weight: 700; }
+  pre .dim { color: #7d706c; }
+  pre .fix { color: #ffd27a; }
+  p code {
+    font-family: var(--mono); font-size: 14px; color: #ffd27a; word-break: break-all;
+    background: #000a; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px;
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+    padding: 10px 16px; border-radius: 10px; font-weight: 600;
+    border: 1px solid var(--line); color: var(--text); background: #ffffff08;
+  }
+  .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn:hover { filter: brightness(1.15); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 480px) { pre { font-size: 12px; padding: 12px; } .card { padding: 30px 20px 22px; } }
+  footer { margin-top: 20px; font-size: 13px; color: #776a66; }
+  [data-lang] { display: none; }
+  html[lang="uk"] [data-lang="uk"], html[lang="en"] [data-lang="en"] { display: block; }
+  @media (prefers-reduced-motion: reduce) { .code, .rain span { animation: none; } .rain { display: none; } }
+</style>
+</head>
+<body>
+<div class="rain" aria-hidden="true">
+  <span style="left:6%;animation-duration:9s;animation-delay:-2s">♂</span>
+  <span style="left:18%;animation-duration:12s;animation-delay:-7s">♂</span>
+  <span style="left:31%;animation-duration:10s;animation-delay:-4s">♂</span>
+  <span style="left:47%;animation-duration:14s;animation-delay:-9s">♂</span>
+  <span style="left:62%;animation-duration:11s;animation-delay:-1s">♂</span>
+  <span style="left:76%;animation-duration:13s;animation-delay:-6s">♂</span>
+  <span style="left:90%;animation-duration:9.5s;animation-delay:-3s">♂</span>
+</div>
+
+<main class="card">
+  <div class="code" aria-label="404">4<b>♂</b>4</div>
+
+  <section data-lang="uk">
+    <div class="tag">Ти заблукав у dungeon</div>
+    <h1>Такої кімнати тут немає, boy next door</h1>
+    <p>Dungeon master обшукав усі підземелля, але сторінки <code>{{.Path}}</code> не знайшов. Мабуть, ти прокрастинував замість того, щоб уважно набирати адресу.</p>
+<pre><span class="err">panic: http: no handler for "{{.Path}}"</span>
+
+<span class="dim">goroutine 1 [lost in the dungeon]:</span>
+main.wander(<span class="dim">0xdead, 0xbeef</span>)
+        /dungeon/corridors.go:404
+main.main()
+        /dungeon/entrance.go:1
+
+<span class="fix">&gt; fix: повернись до входу і закоміть щось корисне</span></pre>
+    <div class="actions">
+      <a class="btn primary" href="/">← До входу в dungeon</a>
+    </div>
+  </section>
+
+  <section data-lang="en">
+    <div class="tag">You got lost in the dungeon</div>
+    <h1>There is no such room here, boy next door</h1>
+    <p>The dungeon master searched every corridor but couldn't find <code>{{.Path}}</code>. You were probably procrastinating instead of typing the address carefully.</p>
+<pre><span class="err">panic: http: no handler for "{{.Path}}"</span>
+
+<span class="dim">goroutine 1 [lost in the dungeon]:</span>
+main.wander(<span class="dim">0xdead, 0xbeef</span>)
+        /dungeon/corridors.go:404
+main.main()
+        /dungeon/entrance.go:1
+
+<span class="fix">&gt; fix: go back to the entrance and commit something useful</span></pre>
+    <div class="actions">
+      <a class="btn primary" href="/">← Back to the dungeon entrance</a>
+    </div>
+  </section>
+
+  <footer>♂ 404: streak of wrong turns ♂</footer>
+</main>
+<script>
+  (function () {
+    try {
+      var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
+      for (var i = 0; i < prefs.length; i++) {
+        var p = String(prefs[i]).toLowerCase().split("-")[0];
+        if (p === "uk" || p === "en") { document.documentElement.lang = p; return; }
+      }
+    } catch (e) {}
+  })();
+</script>
+</body>
+</html>
