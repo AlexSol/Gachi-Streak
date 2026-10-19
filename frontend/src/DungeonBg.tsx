@@ -710,13 +710,14 @@ const EFFECTS: Record<Drawable, Effect> = { embers, grid, glyphs, floor, spotlig
 
 // ---------- component ----------
 
-export function DungeonBg({ effect, strength }: { effect: BgEffect; strength: number }) {
+/** `parallax={false}`: the background ignores the pointer (used on the main pages). */
+export function DungeonBg({ effect, strength, parallax = true }: { effect: BgEffect; strength: number; parallax?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const reduced = useReducedMotion();
   const resolved = resolveEffect(effect);
   // Read by the render loop without restarting it on every slider tick.
-  const live = useRef({ effect: resolved, k: strength / 100, reduced });
-  live.current = { effect: resolved, k: strength / 100, reduced };
+  const live = useRef({ effect: resolved, k: strength / 100, reduced, parallax });
+  live.current = { effect: resolved, k: strength / 100, reduced, parallax };
   const kick = useRef<() => void>(() => undefined);
 
   useEffect(() => {
@@ -761,7 +762,8 @@ export function DungeonBg({ effect, strength }: { effect: BgEffect; strength: nu
     let t = 0, last = performance.now(), raf = 0, lastEff = "";
 
     const render = (dt: number) => {
-      const { effect, k, reduced } = live.current;
+      const { effect, k, reduced, parallax } = live.current;
+      const still = reduced || !parallax;
       const K = reduced ? Math.min(k, 1) : k;
       const speed = 0.3 + 0.7 * K;
       t += dt * speed;
@@ -786,8 +788,8 @@ export function DungeonBg({ effect, strength }: { effect: BgEffect; strength: nu
       } else cx.clearRect(0, 0, W, H);
       const c: Ctx = {
         cx, W, H, t, dt, dts: dt * speed, now: performance.now() / 1000,
-        px: reduced ? 0 : mx * K,
-        py: reduced ? 0 : my * K,
+        px: still ? 0 : mx * K,
+        py: still ? 0 : my * K,
         A: Math.min(1.6, K), K,
         boost: boostAt ? clamp01(1 - (performance.now() - boostAt) / BOOST_MS) : 0,
         ptr, clicks,
