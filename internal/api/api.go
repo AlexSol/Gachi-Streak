@@ -98,3 +98,59 @@ type PingResponse struct {
 type Error struct {
 	Error string `json:"error"`
 }
+
+// RankDef is one step of the rank ladder. Rank = total XP, so it can drop.
+type RankDef struct {
+	Level int    `json:"level"`
+	Key   string `json:"key"`
+	Name  string `json:"name"`
+	MinXP int    `json:"min_xp"`
+	Code  string `json:"code"` // the Go snippet the rank stands for
+}
+
+// AchievementDef describes one achievement. Texts live in the frontend,
+// keyed by ID.
+type AchievementDef struct {
+	ID       string `json:"id"`
+	Category string `json:"category"` // streak | go | tests | duo | shame | secret
+	XP       int    `json:"xp"`
+	Target   int    `json:"target"`
+	// Detector is "auto" (computed from activity history) or "diff"
+	// (needs commit diff analysis — not implemented yet, never unlocks).
+	Detector string `json:"detector"`
+	Rule     string `json:"rule"` // human-readable detection rule
+	Secret   bool   `json:"secret,omitempty"`
+}
+
+// AchievementState is one user's progress on one achievement.
+type AchievementState struct {
+	ID       string `json:"id"`
+	Unlocked bool   `json:"unlocked"`
+	Day      string `json:"day,omitempty"` // day it was unlocked (user's time zone)
+	Progress int    `json:"progress"`
+	Target   int    `json:"target"`
+}
+
+// UserProgress is the XP, rank and achievements of one user.
+type UserProgress struct {
+	Name           string             `json:"name"`
+	XP             int                `json:"xp"`
+	XPDays         int                `json:"xp_days"`
+	XPAchievements int                `json:"xp_achievements"`
+	XPPenalty      int                `json:"xp_penalty"` // already subtracted, >= 0
+	Rank           int                `json:"rank"`       // RankDef.Level
+	NextRankXP     int                `json:"next_rank_xp,omitempty"`
+	ActiveDays     int                `json:"active_days"`
+	Failures       int                `json:"failures"`
+	Achievements   []AchievementState `json:"achievements"`
+}
+
+// ProgressResponse is returned by GET /progress.
+type ProgressResponse struct {
+	Me           string           `json:"me"`
+	XPPerDay     int              `json:"xp_per_day"`
+	XPPerFailure int              `json:"xp_per_failure"`
+	Ranks        []RankDef        `json:"ranks"`
+	Achievements []AchievementDef `json:"achievements"`
+	Users        []UserProgress   `json:"users"`
+}
