@@ -54,7 +54,7 @@ export function App() {
   return (
     <div class="shell">
       <header class="top">
-        <a class="brand" href="/">
+        <a class="brand" href="#/">
           <span class="mars" aria-hidden="true">♂</span> Gachi Streak
         </a>
         {auth.kind === "user" && (

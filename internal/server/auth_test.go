@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -113,5 +114,53 @@ func TestLoginRateLimit(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("limited ip: %d", resp.StatusCode)
+	}
+}
+
+func TestIndexRedirectsSignedInUsers(t *testing.T) {
+	f := setup(t)
+	f.srv.UI = http.NotFoundHandler() // mount something at /app/ for the test
+	srv := httptest.NewServer(f.srv.Handler())
+	defer srv.Close()
+
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	get := func(cookie string) *http.Response {
+		req, _ := http.NewRequest("GET", srv.URL+"/", nil)
+		if cookie != "" {
+			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: cookie})
+		}
+		resp, err := noRedirect.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp
+	}
+
+	// guest → landing page
+	if r := get(""); r.StatusCode != 200 {
+		t.Fatalf("guest: %d", r.StatusCode)
+	}
+	// stale / fake cookie → still the landing page
+	if r := get("gs_fake"); r.StatusCode != 200 {
+		t.Fatalf("fake cookie: %d", r.StatusCode)
+	}
+
+	// real session → redirect to the app
+	req, _ := http.NewRequest("POST", srv.URL+"/auth/login", strings.NewReader(`{"token":"`+f.alex+`"}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	var sid string
+	for _, c := range resp.Cookies() {
+		if c.Name == sessionCookie {
+			sid = c.Value
+		}
+	}
+	r := get(sid)
+	if r.StatusCode != http.StatusFound || r.Header.Get("Location") != "/app/" {
+		t.Fatalf("signed in: %d %q", r.StatusCode, r.Header.Get("Location"))
 	}
 }

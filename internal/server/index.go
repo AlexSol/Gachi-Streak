@@ -22,6 +22,12 @@ var supportedLangs = []string{"en", "uk"}
 // The language comes from Accept-Language (the browser's / OS language);
 // the page refines it client-side with navigator.languages.
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	// Signed-in users have nothing to do on the invite page: go to the app.
+	if s.UI != nil && s.hasSession(r) {
+		w.Header().Set("Cache-Control", "no-store")
+		http.Redirect(w, r, "/app/", http.StatusFound)
+		return
+	}
 	lang := PickLang(r.Header.Get("Accept-Language"))
 	var buf bytes.Buffer
 	if err := indexTmpl.Execute(&buf, struct{ Lang string }{lang}); err != nil {
@@ -32,8 +38,20 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Language", lang)
 	w.Header().Set("Vary", "Accept-Language")
-	w.Header().Set("Cache-Control", "no-cache")
+	// The response depends on the session cookie, so it must not be cached.
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Add("Vary", "Cookie")
 	w.Write(buf.Bytes())
+}
+
+// hasSession reports whether the request carries a live browser session.
+func (s *Server) hasSession(r *http.Request) bool {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil || c.Value == "" {
+		return false
+	}
+	_, err = s.Store.UserBySession(r.Context(), c.Value, s.Now())
+	return err == nil
 }
 
 // PickLang returns the best supported language for an Accept-Language
