@@ -34,7 +34,8 @@ type StatusResponse struct {
 
 // PingRequest is the optional body of POST /ping.
 type PingRequest struct {
-	Note string `json:"note,omitempty"`
+	Note   string `json:"note,omitempty"`
+	Source string `json:"source,omitempty"` // "manual" (default) | "local_git"
 }
 
 // PingResponse is returned by POST /ping.

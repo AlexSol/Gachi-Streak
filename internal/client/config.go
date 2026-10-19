@@ -30,19 +30,27 @@ type Config struct {
 	// "SystemExclamation", "SystemAsterisk". Empty = silence.
 	WarningSound string `json:"warning_sound"`
 	FailedSound  string `json:"failed_sound"`
+
+	// Local git repositories to watch. A commit authored today (any branch)
+	// counts as today's activity — no button press needed. Requires git in PATH.
+	LocalRepos []string `json:"local_repos"`
+	// Author emails that count. Empty = each repo's own `git config user.email`.
+	LocalAuthorEmails []string `json:"local_author_emails"`
 }
 
 // DefaultConfig returns a config with defaults filled in, relative to dataDir.
 func DefaultConfig(dataDir string) Config {
 	return Config{
-		ServerURL:        "http://localhost:8080",
-		Token:            "",
-		PollSeconds:      60,
-		WarningImagesDir: filepath.Join(dataDir, "images", "warning"),
-		FailedImagesDir:  filepath.Join(dataDir, "images", "failed"),
-		RotateMinutes:    30,
-		WarningSound:     "SystemExclamation",
-		FailedSound:      "SystemHand",
+		ServerURL:         "http://localhost:8080",
+		Token:             "",
+		PollSeconds:       60,
+		WarningImagesDir:  filepath.Join(dataDir, "images", "warning"),
+		FailedImagesDir:   filepath.Join(dataDir, "images", "failed"),
+		RotateMinutes:     30,
+		WarningSound:      "SystemExclamation",
+		FailedSound:       "SystemHand",
+		LocalRepos:        []string{},
+		LocalAuthorEmails: []string{},
 	}
 }
 

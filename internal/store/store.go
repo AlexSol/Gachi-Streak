@@ -28,8 +28,9 @@ const (
 
 // Activity sources.
 const (
-	SourceManual = "manual"
-	SourceGitHub = "github"
+	SourceManual   = "manual"
+	SourceLocalGit = "local_git" // client saw a commit in a local repo
+	SourceGitHub   = "github"
 )
 
 // User is a participant.

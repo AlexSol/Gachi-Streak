@@ -78,14 +78,23 @@ func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	source := req.Source
+	switch source {
+	case "":
+		source = store.SourceManual
+	case store.SourceManual, store.SourceLocalGit:
+	default: // "github" is reserved for the server-side checker
+		writeErr(w, http.StatusBadRequest, "unknown source: "+source)
+		return
+	}
 	now := s.Now()
-	_, counted, err := s.Store.RecordActivity(r.Context(), u, store.SourceManual, req.Note, now)
+	_, counted, err := s.Store.RecordActivity(r.Context(), u, source, req.Note, now)
 	if err != nil {
 		s.Log.Error("ping", "user", u.Name, "err", err)
 		writeErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	s.Log.Info("ping", "user", u.Name, "counted", counted)
+	s.Log.Info("ping", "user", u.Name, "source", source, "counted", counted, "note", req.Note)
 	us, err := s.userStatus(r.Context(), u, now)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "internal error")

@@ -110,6 +110,10 @@ func TestFullDayCycle(t *testing.T) {
 	if !pr.Counted || pr.User.Streak != 1 || pr.User.State != "safe" {
 		t.Fatalf("ping resp %+v", pr)
 	}
+	// Unknown / reserved source is rejected.
+	if code := f.do(t, "POST", "/ping", f.alex, `{"source":"github"}`, nil); code != 400 {
+		t.Fatalf("github source must be rejected from clients: %d", code)
+	}
 	// Second ping same day: not counted, empty body is fine.
 	f.do(t, "POST", "/ping", f.alex, "", &pr)
 	if pr.Counted || pr.User.Streak != 1 {

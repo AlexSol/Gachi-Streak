@@ -35,10 +35,10 @@ func (c *APIClient) Status(ctx context.Context) (api.StatusResponse, error) {
 	return out, c.do(ctx, http.MethodGet, "/status", nil, &out)
 }
 
-// Ping calls POST /ping.
-func (c *APIClient) Ping(ctx context.Context, note string) (api.PingResponse, error) {
+// Ping calls POST /ping. source is "manual" or "local_git".
+func (c *APIClient) Ping(ctx context.Context, source, note string) (api.PingResponse, error) {
 	var out api.PingResponse
-	body, _ := json.Marshal(api.PingRequest{Note: note})
+	body, _ := json.Marshal(api.PingRequest{Source: source, Note: note})
 	return out, c.do(ctx, http.MethodPost, "/ping", body, &out)
 }
 

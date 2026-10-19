@@ -42,6 +42,8 @@ type app struct {
 	pingItem   *systray.MenuItem
 	snoozeItem *systray.MenuItem
 	autoItem   *systray.MenuItem
+	gitItem    *systray.MenuItem
+	localGit   client.LocalGit
 }
 
 func main() {
@@ -84,6 +86,10 @@ func main() {
 		api:     client.NewAPIClient(cfg),
 		engine:  client.NewEngine(cfg, desk, dataDir),
 		refresh: make(chan struct{}, 1),
+		localGit: client.LocalGit{
+			Repos:   cfg.LocalRepos,
+			Authors: cfg.LocalAuthorEmails,
+		},
 	}
 	systray.Run(a.onReady, func() { log.Println("exit") })
 }
@@ -100,6 +106,13 @@ func (a *app) onReady() {
 		it.Disable()
 		it.Hide()
 		a.userItems = append(a.userItems, it)
+	}
+	a.gitItem = systray.AddMenuItem("", "Локальні репозиторії з config.json → local_repos")
+	a.gitItem.Disable()
+	if len(a.localGit.Repos) == 0 {
+		a.gitItem.Hide()
+	} else {
+		a.gitItem.SetTitle(fmt.Sprintf("📁 Відстежую локальних репо: %d", len(a.localGit.Repos)))
 	}
 	systray.AddSeparator()
 	a.pingItem = systray.AddMenuItem("✅ Я сьогодні вчив Go (відмітити)", "POST /ping")
@@ -180,15 +193,53 @@ func (a *app) poll() {
 		a.statusItem.SetTitle("❌ Немає зв'язку: " + shorten(err.Error(), 60))
 		return
 	}
-	a.render(st)
-
 	me, ok := client.FindMe(st)
+	if ok && !me.DoneToday && len(a.localGit.Repos) > 0 {
+		if upd, counted := a.checkLocalGit(ctx, me); counted {
+			// re-read so both users' lines are fresh
+			if st2, err := a.api.Status(ctx); err == nil {
+				st = st2
+				me, _ = client.FindMe(st)
+			} else {
+				me = upd
+			}
+		}
+	}
+	a.render(st)
 	if !ok {
 		return
 	}
 	if _, err := a.engine.Apply(me, time.Now()); err != nil {
 		log.Println("apply:", err)
 	}
+}
+
+// checkLocalGit pings the server if a local repo has a commit from today.
+func (a *app) checkLocalGit(ctx context.Context, me api.UserStatus) (api.UserStatus, bool) {
+	loc, err := time.LoadLocation(me.Timezone)
+	if err != nil {
+		loc = time.Local
+	}
+	c, errs := a.localGit.FindToday(ctx, time.Now(), loc)
+	for _, e := range errs {
+		log.Println("local git:", e)
+	}
+	if c == nil {
+		title := fmt.Sprintf("📁 Локальні репо (%d): сьогодні комітів нема", len(a.localGit.Repos))
+		if len(errs) > 0 {
+			title = "📁 Локальні репо: помилка — " + shorten(errs[0].Error(), 50)
+		}
+		a.gitItem.SetTitle(title)
+		return me, false
+	}
+	resp, err := a.api.Ping(ctx, "local_git", c.Note())
+	if err != nil {
+		log.Println("local git ping:", err)
+		return me, false
+	}
+	log.Println("local git counted:", c.Note())
+	a.gitItem.SetTitle("📁 Зараховано коміт: " + shorten(filepath.Base(c.Repo)+" "+c.Hash[:min(7, len(c.Hash))], 50))
+	return resp.User, true
 }
 
 func (a *app) render(st api.StatusResponse) {
@@ -215,7 +266,7 @@ func (a *app) render(st api.StatusResponse) {
 func (a *app) ping() {
 	a.mu.Lock()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	resp, err := a.api.Ping(ctx, "tray")
+	resp, err := a.api.Ping(ctx, "manual", "tray")
 	cancel()
 	if err == nil {
 		_, err = a.engine.Apply(resp.User, time.Now())
