@@ -316,6 +316,10 @@ func TestPresenceAndActivity(t *testing.T) {
 		if u.Name == "alex" && (u.TotalSeconds != 5400+1200+60 || u.Apps[0].App != "GoLand") {
 			t.Fatalf("alex activity %+v", u)
 		}
+		// No usage at all: [] in JSON, never null (the web app reads .length).
+		if u.Name == "sasha" && (u.Apps == nil || len(u.Apps) != 0) {
+			t.Fatalf("sasha apps must be an empty list: %#v", u.Apps)
+		}
 	}
 }
 

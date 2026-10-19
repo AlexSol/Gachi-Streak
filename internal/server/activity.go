@@ -143,7 +143,9 @@ func (s *Server) handleActivity(w http.ResponseWriter, r *http.Request) {
 			perDay[row.Day] += row.Seconds
 			total += row.Seconds
 		}
-		au := api.ActivityUser{Name: u.Name, TotalSeconds: total}
+		// Empty slices, not nil: the web app reads apps.length and a user
+		// without any usage this week must come out as [] rather than null.
+		au := api.ActivityUser{Name: u.Name, TotalSeconds: total, Apps: []api.AppTime{}}
 		for app, sec := range perApp {
 			au.Apps = append(au.Apps, api.AppTime{App: app, Seconds: sec})
 		}

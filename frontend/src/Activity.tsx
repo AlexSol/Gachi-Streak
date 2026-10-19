@@ -68,7 +68,7 @@ export function WeekStats({ t, lang, me }: { t: Dict; lang: Lang; me: string }) 
 
   if (!data || data.users.every((u) => u.total_seconds === 0)) return null;
   const users = [...data.users].sort((a, b) => (a.name === me ? -1 : b.name === me ? 1 : 0));
-  const dayMax = Math.max(1, ...users.flatMap((u) => u.by_day.map((d) => d.seconds)));
+  const dayMax = Math.max(1, ...users.flatMap((u) => (u.by_day ?? []).map((d) => d.seconds)));
   const locale = lang === "uk" ? "uk-UA" : "en-GB";
 
   return (
@@ -85,7 +85,7 @@ export function WeekStats({ t, lang, me }: { t: Dict; lang: Lang; me: string }) 
               </span>
             </div>
             <div class="days" role="img" aria-label={`${u.name}: ${fmtDur(u.total_seconds, t)}`}>
-              {u.by_day.map((d) => (
+              {(u.by_day ?? []).map((d) => (
                 <div key={d.day} class="day" title={`${d.day}: ${fmtDur(d.seconds, t)}`}>
                   <div class="day-bar" style={{ height: `${Math.max(2, (d.seconds / dayMax) * 100)}%` }} />
                   <span class="day-label">
@@ -94,7 +94,7 @@ export function WeekStats({ t, lang, me }: { t: Dict; lang: Lang; me: string }) 
                 </div>
               ))}
             </div>
-            {u.apps.length > 0 && <AppBars apps={u.apps} t={t} limit={6} />}
+            {u.apps && u.apps.length > 0 && <AppBars apps={u.apps} t={t} limit={6} />}
           </div>
         ))}
       </div>

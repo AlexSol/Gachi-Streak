@@ -40,8 +40,9 @@ export interface Presence {
 export interface ActivityUser {
   name: string;
   total_seconds: number;
-  apps: AppTime[];
-  by_day: { day: string; seconds: number }[];
+  // Older servers send null instead of [] for a user without usage.
+  apps: AppTime[] | null;
+  by_day: { day: string; seconds: number }[] | null;
 }
 
 export interface ActivityResponse {
