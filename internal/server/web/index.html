@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gachi Streak</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♂</text></svg>">
+<style>
+  :root {
+    --bg: #0d0a0b; --panel: #171214; --text: #f1ece9; --muted: #a99c97;
+    --accent: #ff8c1a; --accent2: #c43cff; --line: #3a2a2e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #3a1d10 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% 110%, #2a0f33 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid; place-items: center; padding: 16px;
+  }
+  .card {
+    width: min(640px, 100%);
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 36px 32px 28px;
+    box-shadow: 0 20px 60px #0008, inset 0 0 0 1px #ffffff08;
+    position: relative; overflow: hidden;
+  }
+  .card::before { /* construction tape */
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 10px;
+    background: repeating-linear-gradient(-45deg, var(--accent) 0 14px, #111 14px 28px);
+  }
+  .mark { font-size: 56px; line-height: 1; color: var(--accent); text-shadow: 0 0 24px #ff8c1a55; }
+  h1 { margin: 10px 0 4px; font-size: clamp(26px, 6vw, 38px); letter-spacing: .5px; }
+  .tag { color: var(--accent2); font-weight: 600; letter-spacing: 2px; text-transform: uppercase; font-size: 13px; }
+  p { color: var(--muted); margin: 14px 0; }
+  .status {
+    display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px;
+    padding: 8px 14px; border-radius: 14px; border: 1px solid var(--line);
+    background: #0006; font-size: 14px;
+  }
+  .dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 14px;
+    background: #000a; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: #ffd27a;
+  }
+  footer { margin-top: 22px; font-size: 13px; color: #776a66; }
+  [data-lang] { display: none; }
+  html[lang="uk"] [data-lang="uk"], html[lang="en"] [data-lang="en"] { display: block; }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="mark" aria-hidden="true">♂</div>
+
+  <section data-lang="uk">
+    <div class="tag">Dungeon під ремонтом</div>
+    <h1>Gachi Streak</h1>
+    <p>Ресурс ще в розробці. Тут живе сервер, який рахує щоденний стрик вивчення Go і жорстко карає за прокрастинацію.</p>
+    <p>Сторінка для людей з'явиться пізніше. А поки — повертайся до коду: дедлайн сам себе не закриє.</p>
+    <div class="status"><span class="dot"></span>Сервер працює · API: <code>/status</code>, <code>/ping</code></div>
+  </section>
+
+  <section data-lang="en">
+    <div class="tag">Dungeon under construction</div>
+    <h1>Gachi Streak</h1>
+    <p>This resource is still under development. It hosts the server that tracks a daily Go learning streak and punishes procrastination without mercy.</p>
+    <p>A human-friendly page is coming later. Meanwhile, get back to your code — the deadline won't close itself.</p>
+    <div class="status"><span class="dot"></span>Server is up · API: <code>/status</code>, <code>/ping</code></div>
+  </section>
+
+  <footer>♂ boy next door, commit today ♂</footer>
+</main>
+<script>
+  // The server already picked a language from Accept-Language; refine it with
+  // the browser's own preference list if that says something more specific.
+  (function () {
+    try {
+      var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
+      for (var i = 0; i < prefs.length; i++) {
+        var p = String(prefs[i]).toLowerCase().split("-")[0];
+        if (p === "uk" || p === "en") { document.documentElement.lang = p; return; }
+      }
+    } catch (e) {}
+  })();
+</script>
+</body>
+</html>

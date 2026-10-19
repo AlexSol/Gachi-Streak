@@ -110,6 +110,9 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 ## API
 
+`GET /` — сторінка «в розробці» для браузера (українська або англійська, за мовою браузера/системи).
+
+
 Усі запити, окрім `/healthz`, з заголовком `Authorization: Bearer <token>`.
 
 ```bash

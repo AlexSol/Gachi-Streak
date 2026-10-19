@@ -34,6 +34,7 @@ type ctxKey struct{}
 // Handler returns the HTTP routes.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", s.handleIndex) // landing page, exact "/" only
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
 	})

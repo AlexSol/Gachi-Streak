@@ -179,3 +179,49 @@ func TestGitHubChecker(t *testing.T) {
 		t.Fatal("alex has no github login")
 	}
 }
+
+func TestPickLang(t *testing.T) {
+	cases := map[string]string{
+		"":                                 "en",
+		"uk-UA,uk;q=0.9,en-US;q=0.8":       "uk",
+		"en-US,en;q=0.9,uk;q=0.8":          "en",
+		"pt-PT,pt;q=0.9,uk;q=0.7,en;q=0.5": "uk",
+		"de-DE":                            "en",
+		"en;q=0.5,uk;q=0.9":                "uk",
+		"uk;q=0":                           "en",
+	}
+	for h, want := range cases {
+		if got := PickLang(h); got != want {
+			t.Errorf("PickLang(%q) = %q, want %q", h, got, want)
+		}
+	}
+}
+
+func TestIndexPage(t *testing.T) {
+	f := setup(t)
+	for _, c := range []struct{ accept, lang string }{
+		{"uk-UA,uk;q=0.9", "uk"},
+		{"en-GB", "en"},
+	} {
+		req, _ := http.NewRequest("GET", f.http.URL+"/", nil)
+		req.Header.Set("Accept-Language", c.accept)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != 200 || !strings.Contains(string(body), `<html lang="`+c.lang+`">`) {
+			t.Fatalf("%s: code %d, lang not %s", c.accept, resp.StatusCode, c.lang)
+		}
+		if !strings.Contains(string(body), "Ресурс ще в розробці") || !strings.Contains(string(body), "still under development") {
+			t.Fatal("both language blocks must be present for client-side switch")
+		}
+	}
+	// unknown paths are not swallowed by the landing page
+	resp, _ := http.Get(f.http.URL + "/nope")
+	resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Fatalf("/nope: %d", resp.StatusCode)
+	}
+}
