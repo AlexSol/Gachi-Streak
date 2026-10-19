@@ -81,14 +81,20 @@ export function App() {
       <main>
         {auth.kind === "loading" && <div class="spinner" aria-label="loading" />}
         {auth.kind === "guest" && <Login t={i18n.t} onLogin={(me) => setAuth({ kind: "user", me })} />}
-        {auth.kind === "user" && route === "dash" && (
-          <Dashboard t={i18n.t} lang={i18n.lang} me={auth.me} onUnauthorized={toGuest} />
-        )}
-        {auth.kind === "user" && route === "ranks" && (
-          <RanksPage t={i18n.t} me={auth.me.name} onUnauthorized={toGuest} />
-        )}
-        {auth.kind === "user" && route === "achievements" && (
-          <AchievementsPage t={i18n.t} lang={i18n.lang} me={auth.me.name} onUnauthorized={toGuest} />
+        {/* All pages are mounted once after sign-in and only hidden/shown on
+            navigation: no spinner, no refetch and no layout jump when switching. */}
+        {auth.kind === "user" && (
+          <>
+            <div hidden={route !== "dash"}>
+              <Dashboard t={i18n.t} lang={i18n.lang} me={auth.me} onUnauthorized={toGuest} />
+            </div>
+            <div hidden={route !== "ranks"}>
+              <RanksPage t={i18n.t} me={auth.me.name} onUnauthorized={toGuest} />
+            </div>
+            <div hidden={route !== "achievements"}>
+              <AchievementsPage t={i18n.t} lang={i18n.lang} me={auth.me.name} onUnauthorized={toGuest} />
+            </div>
+          </>
         )}
       </main>
 
