@@ -1,0 +1,10 @@
+{
+  "server_url": "http://your-server:8080",
+  "token": "gs_paste_token_from_user_add_here",
+  "poll_seconds": 60,
+  "warning_images_dir": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\images\\warning",
+  "failed_images_dir": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\images\\failed",
+  "rotate_minutes": 30,
+  "warning_sound": "SystemExclamation",
+  "failed_sound": "C:\\Users\\YOU\\Music\\punishment.wav"
+}
