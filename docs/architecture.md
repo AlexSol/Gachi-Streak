@@ -77,6 +77,15 @@ presence(user_id PK, app, since, idle, updated_at)
 
 Якщо останній звіт старший за 3 хв, `/status` показує клієнта як offline.
 
+## Віджет
+
+WebView2 через `github.com/jchv/go-webview2`, без CGO. Вікно працює у власному OS-потоці з власним циклом повідомлень, окремо від трею. Після створення стиль вікна міняється на `WS_POPUP` + `WS_EX_TOOLWINDOW`: без рамки, без кнопки в таскбарі і Alt+Tab. На Windows 11 кути заокруглюються через DWM.
+
+- Режим `desktop`: вікно сабкласиться, і на кожен `WM_WINDOWPOSCHANGING` йому ставиться `HWND_BOTTOM`, тож воно завжди лишається під іншими вікнами.
+- Режим `overlay`: `HWND_TOPMOST`.
+- Перетягування: JS викликає `gsDrag` → `ReleaseCapture` + `WM_NCLBUTTONDOWN(HTCAPTION)`. Позиція зберігається на `WM_EXITSIZEMOVE`.
+- Дані: після кожного опитування трей викликає `Dispatch(Eval("gsUpdate(json)"))`. Таймери віджет рахує сам щосекунди.
+
 ## Відомі обмеження v1
 
 - Без зв'язку з сервером клієнт тримає останній відомий стан.

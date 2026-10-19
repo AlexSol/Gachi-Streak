@@ -13,5 +13,7 @@
   "local_author_emails": [],
   "activity_tracking": true,
   "share_activity": true,
-  "activity_ignore": ["Telegram.exe", "KeePassXC.exe"]
+  "activity_ignore": ["Telegram.exe", "KeePassXC.exe"],
+  "show_widget": true,
+  "widget_mode": "desktop"
 }

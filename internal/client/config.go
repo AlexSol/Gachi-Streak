@@ -44,6 +44,11 @@ type Config struct {
 	ShareActivity bool `json:"share_activity"`
 	// Programs that are never tracked, e.g. ["Telegram.exe", "KeePassXC.exe"].
 	ActivityIgnore []string `json:"activity_ignore"`
+
+	// Desktop widget: shown on start, and where it lives —
+	// "desktop" (a gadget under all windows) or "overlay" (always on top, like Discord).
+	ShowWidget bool   `json:"show_widget"`
+	WidgetMode string `json:"widget_mode"`
 }
 
 // DefaultConfig returns a config with defaults filled in, relative to dataDir.
@@ -62,7 +67,49 @@ func DefaultConfig(dataDir string) Config {
 		ActivityTracking:  true,
 		ShareActivity:     true,
 		ActivityIgnore:    []string{},
+		ShowWidget:        true,
+		WidgetMode:        WidgetModeDesktop,
 	}
+}
+
+// Widget modes.
+const (
+	WidgetModeDesktop = "desktop"
+	WidgetModeOverlay = "overlay"
+)
+
+// NormalizedWidgetMode returns a valid widget mode (desktop by default).
+func (c Config) NormalizedWidgetMode() string {
+	if c.WidgetMode == WidgetModeOverlay {
+		return WidgetModeOverlay
+	}
+	return WidgetModeDesktop
+}
+
+// SetConfigFields changes a few top-level keys in config.json, keeping
+// everything else (including keys this version doesn't know) as is.
+// It refuses to touch a file that is not valid JSON.
+func SetConfigFields(path string, fields map[string]any) error {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return fmt.Errorf("config is not valid JSON, not changing it: %w", err)
+	}
+	for k, v := range fields {
+		m[k] = v
+	}
+	out, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, out, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 // PollInterval returns the poll interval with a sane minimum.

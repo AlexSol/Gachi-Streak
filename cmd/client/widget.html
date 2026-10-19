@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #110d0e; --panel: #181214; --text: #f1ece9; --muted: #a99c97; --line: #33252a;
+    --accent: #ff8c1a; --safe: #2ecc71; --warn: #ff8c1a; --fail: #ff3b3b; --pending: #9a8f8b;
+    --mono: "Cascadia Code", Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
+  body {
+    background: radial-gradient(400px 220px at 50% -20%, #3a1d10 0%, transparent 70%), var(--bg);
+    color: var(--text); font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  .tape { height: 5px; flex: none; background: repeating-linear-gradient(-45deg, var(--tape, var(--accent)) 0 9px, #111 9px 18px); }
+  header {
+    display: flex; align-items: center; gap: 6px; padding: 7px 8px 5px 12px; cursor: move; flex: none;
+  }
+  header .brand { font-weight: 800; letter-spacing: .3px; flex: 1; }
+  header .brand span { color: var(--accent); }
+  header button {
+    background: transparent; border: 0; color: var(--muted); cursor: pointer;
+    width: 24px; height: 24px; border-radius: 6px; font-size: 13px; line-height: 24px; padding: 0;
+  }
+  header button:hover { background: #ffffff14; color: var(--text); }
+  main { flex: 1; overflow: hidden; padding: 2px 12px 0; display: flex; flex-direction: column; gap: 8px; }
+  .user {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+    border-left: 3px solid var(--c, var(--pending));
+  }
+  .user.safe { --c: var(--safe); } .user.warning { --c: var(--warn); } .user.failed { --c: var(--fail); }
+  .row { display: flex; align-items: baseline; gap: 8px; }
+  .name { font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name small { color: var(--muted); font-weight: 400; }
+  .streak { font-weight: 900; font-size: 20px; }
+  .failed .streak { color: var(--fail); }
+  .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .left { font-family: var(--mono); color: var(--c, var(--pending)); font-weight: 700; }
+  .presence { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .presence b { color: var(--text); font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #5a4f4c; flex: none; }
+  .presence.on .dot { background: var(--safe); box-shadow: 0 0 6px #2ecc7188; }
+  .presence.idle .dot { background: #f1c40f; }
+  footer { padding: 8px 12px 10px; flex: none; display: grid; gap: 6px; }
+  .ping {
+    width: 100%; border: 0; border-radius: 9px; padding: 9px; font: 700 13px "Segoe UI", sans-serif;
+    background: var(--accent); color: #1a0d02; cursor: pointer;
+  }
+  .ping.done { background: transparent; color: var(--safe); border: 1px solid var(--line); }
+  .ping:disabled { opacity: .6; cursor: default; }
+  .note { color: var(--muted); font-size: 11.5px; text-align: center; min-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .banner { color: var(--fail); font-size: 12px; text-align: center; padding: 4px 0; }
+  .empty { color: var(--muted); text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+<div class="tape" id="tape"></div>
+<header id="drag">
+  <div class="brand"><span>♂</span> Gachi Streak</div>
+  <button id="web" title="">🌐</button>
+  <button id="close" title="">✕</button>
+</header>
+<main id="users"><div class="empty" id="empty">…</div></main>
+<footer>
+  <button class="ping" id="ping"></button>
+  <div class="note" id="note"></div>
+</footer>
+<script>
+  const L = (navigator.languages || [navigator.language || "en"]).map(x => String(x).toLowerCase().split("-")[0]);
+  const uk = L.indexOf("uk") !== -1 && (L.indexOf("en") === -1 || L.indexOf("uk") < L.indexOf("en"));
+  const T = uk ? {
+    you: "ти", left: "до дедлайну", ping: "✅ Я сьогодні вчив Go", pinged: "✅ На сьогодні зараховано",
+    pinging: "Відмічаю…", web: "Відкрити веб-дашборд", close: "Сховати віджет", now: "у", afk: "AFK",
+    offline: "клієнт офлайн", nostat: "немає клієнта", today: "Сьогодні в програмах", wait: "Підключаюсь…",
+    noconn: "Немає зв'язку з сервером", config: "Налаштуй конфіг (меню трею → ⚙️)", demo: "🧪 Демо",
+    st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "г", m: "хв"
+  } : {
+    you: "you", left: "until deadline", ping: "✅ I studied Go today", pinged: "✅ Counted for today",
+    pinging: "Saving…", web: "Open web dashboard", close: "Hide widget", now: "in", afk: "AFK",
+    offline: "client offline", nostat: "no client", today: "Today in programs", wait: "Connecting…",
+    noconn: "No connection to the server", config: "Fill in the config (tray menu → ⚙️)", demo: "🧪 Demo",
+    st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "h", m: "m"
+  };
+  document.documentElement.lang = uk ? "uk" : "en";
+  const $ = id => document.getElementById(id);
+  $("web").title = T.web; $("close").title = T.close; $("ping").textContent = T.ping; $("empty").textContent = T.wait;
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const dur = sec => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `${h}${T.h} ${String(m).padStart(2, "0")}${T.m}` : `${m}${T.m}`; };
+  const clock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+
+  let data = null, busy = false;
+
+  function presence(p) {
+    if (!p) return `<div class="presence"><span class="dot"></span>${T.nostat}</div>`;
+    if (!p.online) return `<div class="presence"><span class="dot"></span>${T.offline}</div>`;
+    if (p.idle) return `<div class="presence idle"><span class="dot"></span>${T.afk}</div>`;
+    if (!p.app) return `<div class="presence on"><span class="dot"></span></div>`;
+    const since = p.since ? (Date.now() - new Date(p.since).getTime()) / 1000 : 0;
+    return `<div class="presence on"><span class="dot"></span>${T.now} <b>${esc(p.app)}</b>${since > 60 ? " · " + dur(since) : ""}</div>`;
+  }
+
+  function render() {
+    if (!data) return;
+    const tape = { safe: "var(--safe)", warning: "var(--warn)", failed: "var(--fail)" }[data.demo || (data.users.find(u => u.me) || {}).state] || "var(--accent)";
+    $("tape").style.setProperty("--tape", tape);
+    let html = "";
+    if (data.error === "config") html += `<div class="banner">${T.config}</div>`;
+    else if (data.error === "offline") html += `<div class="banner">${T.noconn}</div>`;
+    for (const u of data.users) {
+      const left = new Date(u.deadline).getTime() - Date.now();
+      html += `<div class="user ${u.state}">
+        <div class="row"><div class="name">${esc(u.name)}${u.me ? ` <small>· ${T.you}</small>` : ""}</div>
+          <span>${T.st[u.state] || ""}</span><span class="streak">🔥${u.streak}</span></div>
+        <div class="meta"><span><span class="left">${clock(left)}</span> ${T.left}</span></div>
+        ${presence(u.presence)}
+      </div>`;
+    }
+    if (!data.users.length && !data.error) html = `<div class="empty">${T.wait}</div>`;
+    $("users").innerHTML = html;
+
+    const me = data.users.find(u => u.me);
+    const btn = $("ping");
+    btn.disabled = busy || !me;
+    btn.textContent = busy ? T.pinging : me && me.done_today ? T.pinged : T.ping;
+    btn.classList.toggle("done", !!(me && me.done_today));
+
+    let note = data.demo ? T.demo + " · " : "";
+    if (data.today_total > 0) note += `${T.today}: ${dur(data.today_total)}` + (data.today_top ? ` · ${esc(data.today_top)}` : "");
+    $("note").innerHTML = note;
+  }
+
+  // called from Go on every poll
+  window.gsUpdate = d => { data = d; busy = false; render(); };
+
+  $("drag").addEventListener("mousedown", e => { if (e.button === 0 && e.target.tagName !== "BUTTON") window.gsDrag(); });
+  $("close").onclick = () => window.gsClose();
+  $("web").onclick = () => window.gsOpenWeb();
+  $("ping").onclick = () => { if (busy) return; busy = true; render(); window.gsPing(); };
+  document.addEventListener("contextmenu", e => e.preventDefault());
+  setInterval(render, 1000);
+  window.gsReady && window.gsReady();
+</script>
+</body>
+</html>

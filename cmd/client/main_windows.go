@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 	_ "time/tzdata"
@@ -48,6 +49,11 @@ type app struct {
 	statsItem  *systray.MenuItem
 	statsRows  []*systray.MenuItem
 	tracker    *client.Tracker
+	widget     *Widget
+	widgetItem *systray.MenuItem
+	modeDesk   *systray.MenuItem
+	modeOver   *systray.MenuItem
+	lastStatus *api.StatusResponse
 	localGit   client.LocalGit
 	desk       *winapi.Desktop
 	cfgErr     error     // non-nil → not configured, server is not polled
@@ -55,6 +61,7 @@ type app struct {
 }
 
 func main() {
+	winapi.EnableDPIAwareness() // crisp widget on scaled displays
 	if !winapi.SingleInstance(appName) {
 		winapi.MessageBox(title, "Gachi Streak вже запущений (дивись у трей).", winapi.MBInfo)
 		return
@@ -124,6 +131,11 @@ func (a *app) onReady() {
 	a.demoItem.AddSeparator()
 	demoStop := a.demoItem.AddSubMenuItem("⏹ Вимкнути демо", "Повернути шпалери і реальний стан із сервера")
 	systray.AddSeparator()
+	a.widgetItem = systray.AddMenuItemCheckbox("🪟 Віджет", "Показати / сховати віджет", false)
+	modeMenu := systray.AddMenuItem("Режим віджета", "")
+	a.modeDesk = modeMenu.AddSubMenuItemCheckbox("🖥 На робочому столі (під вікнами)", "", false)
+	a.modeOver = modeMenu.AddSubMenuItemCheckbox("🎮 Поверх усіх вікон (як Discord)", "", false)
+	a.syncWidgetMenu()
 	imagesItem := systray.AddMenuItem("📂 Папка з картинками", "")
 	configItem := systray.AddMenuItem("⚙️ Відкрити конфіг", "Зміни підхоплюються автоматично після збереження")
 	reloadItem := systray.AddMenuItem("♻️ Перечитати конфіг", "")
@@ -132,6 +144,11 @@ func (a *app) onReady() {
 	quitItem := systray.AddMenuItem("Вихід", "Шпалери-покарання НЕ знімаються при виході 😈")
 
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
+
+	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.widgetClosed)
+	if a.cfg.ShowWidget {
+		go a.widget.Show(winapi.WidgetMode(a.cfg.NormalizedWidgetMode()))
+	}
 
 	go a.loop()
 	go a.trackLoop()
@@ -171,6 +188,12 @@ func (a *app) onReady() {
 				} else {
 					a.autoItem.Uncheck()
 				}
+			case <-a.widgetItem.ClickedCh:
+				go a.toggleWidget()
+			case <-a.modeDesk.ClickedCh:
+				go a.setWidgetMode(client.WidgetModeDesktop)
+			case <-a.modeOver.ClickedCh:
+				go a.setWidgetMode(client.WidgetModeOverlay)
 			case <-quitItem.ClickedCh:
 				systray.Quit()
 				return
@@ -255,6 +278,19 @@ func (a *app) reload(force bool) {
 	a.mu.Unlock()
 	log.Println("config reloaded, error:", a.cfgErr)
 	a.updateGitItem()
+	if a.widget != nil { // apply widget settings edited by hand
+		mode := winapi.WidgetMode(a.cfg.NormalizedWidgetMode())
+		switch open := a.widget.IsOpen(); {
+		case a.cfg.ShowWidget && !open:
+			a.widget.Show(mode)
+			a.locked(func() { a.pushWidget("") })
+		case !a.cfg.ShowWidget && open:
+			a.widget.Close()
+		case open:
+			a.widget.SetMode(mode)
+		}
+		a.syncWidgetMenu()
+	}
 }
 
 func (a *app) updateGitItem() {
@@ -285,6 +321,7 @@ func (a *app) poll() {
 	defer a.mu.Unlock()
 	if a.cfgErr != nil {
 		a.showConfigProblem()
+		a.pushWidget("config")
 		return
 	}
 
@@ -296,6 +333,7 @@ func (a *app) poll() {
 		systray.SetIcon(client.StateIcon("offline"))
 		systray.SetTooltip(title + ": немає зв'язку з сервером")
 		a.statusItem.SetTitle("❌ Немає зв'язку: " + shorten(err.Error(), 60))
+		a.pushWidget("offline")
 		return
 	}
 	me, ok := client.FindMe(st)
@@ -320,7 +358,9 @@ func (a *app) poll() {
 			}
 		}
 	}
+	a.lastStatus = &st
 	a.render(st)
+	a.pushWidget("")
 	if !ok {
 		return
 	}
@@ -436,6 +476,7 @@ func (a *app) render(st api.StatusResponse) {
 
 func (a *app) ping() {
 	if a.cfgErr != nil {
+		a.locked(func() { a.pushWidget("config") })
 		winapi.MessageBox(title, "Спочатку налаштуй конфіг ("+a.cfgPath+"):\n\n"+a.cfgErr.Error(), winapi.MBWarning)
 		return
 	}
@@ -450,6 +491,7 @@ func (a *app) ping() {
 
 	if err != nil {
 		log.Println("ping:", err)
+		a.locked(func() { a.pushWidget("") }) // un-stick the widget button
 		winapi.MessageBox(title, "Не вдалося відмітити заняття:\n"+err.Error(), winapi.MBError)
 		return
 	}
@@ -488,6 +530,107 @@ func (a *app) demo(m client.Mode) {
 		a.demoItem.SetTitle("🧪 Демо")
 		a.kick() // back to the real state
 	}
+	a.locked(func() { a.pushWidget("") })
+}
+
+// pushWidget sends the latest known state to the widget. Call with a.mu held.
+func (a *app) pushWidget(errKind string) {
+	if a.widget == nil {
+		return
+	}
+	d := widgetData{Error: errKind, Demo: string(a.engine.Demo), Users: []widgetUser{}}
+	if a.lastStatus != nil {
+		for _, u := range a.lastStatus.Users {
+			wu := widgetUser{
+				Name: u.Name, Me: u.Name == a.lastStatus.Me, Streak: u.Streak, State: u.State,
+				Deadline: u.Deadline.Format(time.RFC3339), DoneToday: u.DoneToday,
+			}
+			if u.Presence != nil {
+				wu.Presence = u.Presence
+			}
+			d.Users = append(d.Users, wu)
+		}
+	}
+	if a.cfg.ActivityTracking {
+		top := a.tracker.Top(0)
+		for _, x := range top {
+			d.TodayTotal += x.Seconds
+		}
+		if len(top) > 0 {
+			d.TodayTop = top[0].App
+		}
+	}
+	a.widget.Update(d)
+}
+
+func (a *app) syncWidgetMenu() {
+	if a.widgetItem == nil {
+		return
+	}
+	if a.widget != nil && a.widget.IsOpen() || a.widget == nil && a.cfg.ShowWidget {
+		a.widgetItem.Check()
+	} else {
+		a.widgetItem.Uncheck()
+	}
+	if a.cfg.NormalizedWidgetMode() == client.WidgetModeOverlay {
+		a.modeOver.Check()
+		a.modeDesk.Uncheck()
+	} else {
+		a.modeDesk.Check()
+		a.modeOver.Uncheck()
+	}
+}
+
+func (a *app) toggleWidget() {
+	if a.widget.IsOpen() {
+		a.widget.Close() // widgetClosed saves show_widget=false
+		return
+	}
+	a.widget.Show(winapi.WidgetMode(a.cfg.NormalizedWidgetMode()))
+	a.saveConfigFields(map[string]any{"show_widget": true})
+	a.locked(func() { a.pushWidget("") })
+	a.syncWidgetMenu()
+}
+
+func (a *app) setWidgetMode(mode string) {
+	a.saveConfigFields(map[string]any{"widget_mode": mode})
+	a.cfg.WidgetMode = mode
+	if a.widget.IsOpen() {
+		a.widget.SetMode(winapi.WidgetMode(mode))
+	} else {
+		a.widget.Show(winapi.WidgetMode(mode))
+		a.saveConfigFields(map[string]any{"show_widget": true})
+		a.locked(func() { a.pushWidget("") })
+	}
+	a.syncWidgetMenu()
+}
+
+// widgetClosed runs when the widget window goes away (✕ or tray toggle).
+func (a *app) widgetClosed() {
+	a.saveConfigFields(map[string]any{"show_widget": false})
+	a.cfg.ShowWidget = false
+	a.syncWidgetMenu()
+}
+
+func (a *app) saveConfigFields(fields map[string]any) {
+	if err := client.SetConfigFields(a.cfgPath, fields); err != nil {
+		log.Println("config save:", err)
+		return
+	}
+	// our own write must not look like an external edit
+	if st, err := os.Stat(a.cfgPath); err == nil {
+		a.mu.Lock()
+		a.cfgMod = st.ModTime()
+		a.mu.Unlock()
+	}
+}
+
+func (a *app) openWeb() {
+	base := strings.TrimRight(a.cfg.ServerURL, "/")
+	if base == "" {
+		return
+	}
+	_ = winapi.Open(base + "/app/")
 }
 
 func (a *app) snooze() {
