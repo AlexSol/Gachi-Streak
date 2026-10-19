@@ -45,6 +45,9 @@ type app struct {
 	autoItem   *systray.MenuItem
 	gitItem    *systray.MenuItem
 	demoItem   *systray.MenuItem
+	statsItem  *systray.MenuItem
+	statsRows  []*systray.MenuItem
+	tracker    *client.Tracker
 	localGit   client.LocalGit
 	desk       *winapi.Desktop
 	cfgErr     error     // non-nil → not configured, server is not polled
@@ -100,6 +103,13 @@ func (a *app) onReady() {
 	a.gitItem = systray.AddMenuItem("", "Локальні репозиторії з config.json → local_repos")
 	a.gitItem.Disable()
 	a.updateGitItem()
+	a.statsItem = systray.AddMenuItem("📊 Сьогодні в програмах", "Час в активних вікнах (лише назви програм)")
+	for i := 0; i < 8; i++ {
+		it := a.statsItem.AddSubMenuItem("", "")
+		it.Disable()
+		it.Hide()
+		a.statsRows = append(a.statsRows, it)
+	}
 	systray.AddSeparator()
 	a.pingItem = systray.AddMenuItem("✅ Я сьогодні вчив Go (відмітити)", "POST /ping")
 	refreshItem := systray.AddMenuItem("🔄 Оновити", "")
@@ -124,6 +134,7 @@ func (a *app) onReady() {
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
 
 	go a.loop()
+	go a.trackLoop()
 	go func() {
 		for {
 			select {
@@ -218,6 +229,11 @@ func (a *app) useConfig(cfg client.Config) {
 	a.cfg = cfg
 	a.api = client.NewAPIClient(cfg)
 	a.localGit = client.LocalGit{Repos: cfg.LocalRepos, Authors: cfg.LocalAuthorEmails}
+	if a.tracker == nil {
+		a.tracker = client.NewTracker(filepath.Join(a.dataDir, "activity.json"), cfg.ActivityIgnore)
+	} else {
+		a.tracker.SetIgnore(cfg.ActivityIgnore)
+	}
 	if a.engine == nil {
 		a.desk = &winapi.Desktop{DataDir: a.dataDir}
 		a.engine = client.NewEngine(cfg, a.desk, a.dataDir)
@@ -283,6 +299,16 @@ func (a *app) poll() {
 		return
 	}
 	me, ok := client.FindMe(st)
+	if ok {
+		if loc, err := time.LoadLocation(me.Timezone); err == nil {
+			a.tracker.SetLocation(loc)
+		}
+	}
+	if a.cfg.ActivityTracking && a.cfg.ShareActivity {
+		if err := a.api.Presence(ctx, a.tracker.Report()); err != nil {
+			log.Println("presence:", err)
+		}
+	}
 	if ok && !me.DoneToday && len(a.localGit.Repos) > 0 {
 		if upd, counted := a.checkLocalGit(ctx, me); counted {
 			// re-read so both users' lines are fresh
@@ -331,7 +357,59 @@ func (a *app) checkLocalGit(ctx context.Context, me api.UserStatus) (api.UserSta
 	return resp.User, true
 }
 
+// trackLoop samples the foreground program every few seconds.
+func (a *app) trackLoop() {
+	const every = 5 * time.Second
+	tick := time.NewTicker(every)
+	defer tick.Stop()
+	lastSave := time.Now()
+	for now := range tick.C {
+		if !a.cfg.ActivityTracking {
+			continue
+		}
+		exe, err := winapi.ForegroundExe()
+		if err != nil {
+			exe = "" // e.g. an elevated window we may not inspect
+		}
+		a.tracker.Sample(now, exe, winapi.IdleDuration() >= client.IdleAfter)
+		if now.Sub(lastSave) >= time.Minute {
+			if err := a.tracker.Save(); err != nil {
+				log.Println("activity save:", err)
+			}
+			lastSave = now
+		}
+	}
+}
+
+func (a *app) renderStats() {
+	if a.statsItem == nil {
+		return
+	}
+	if !a.cfg.ActivityTracking {
+		a.statsItem.SetTitle("📊 Статистика програм вимкнена")
+		for _, it := range a.statsRows {
+			it.Hide()
+		}
+		return
+	}
+	top := a.tracker.Top(len(a.statsRows))
+	var total int64
+	for _, x := range top {
+		total += x.Seconds
+	}
+	a.statsItem.SetTitle("📊 Сьогодні в програмах: " + client.FormatDuration(time.Duration(total)*time.Second))
+	for i, it := range a.statsRows {
+		if i < len(top) {
+			it.SetTitle(fmt.Sprintf("%s — %s", top[i].App, client.FormatDuration(time.Duration(top[i].Seconds)*time.Second)))
+			it.Show()
+		} else {
+			it.Hide()
+		}
+	}
+}
+
 func (a *app) render(st api.StatusResponse) {
+	a.renderStats()
 	me, _ := client.FindMe(st)
 	if a.engine.Demo != "" {
 		systray.SetIcon(client.StateIcon(string(a.engine.Demo)))

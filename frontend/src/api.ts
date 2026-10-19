@@ -20,6 +20,33 @@ export interface UserStatus {
   deadline: string; // RFC3339
   seconds_left: number;
   last_failure?: Failure;
+  presence?: Presence;
+  today_apps?: AppTime[];
+}
+
+export interface AppTime {
+  app: string;
+  seconds: number;
+}
+
+export interface Presence {
+  app?: string;
+  since?: string;
+  idle: boolean;
+  online: boolean;
+  updated_at: string;
+}
+
+export interface ActivityUser {
+  name: string;
+  total_seconds: number;
+  apps: AppTime[];
+  by_day: { day: string; seconds: number }[];
+}
+
+export interface ActivityResponse {
+  days: number;
+  users: ActivityUser[];
 }
 
 export interface StatusResponse {
@@ -58,6 +85,7 @@ export const api = {
   login: (token: string) => call<Me>("POST", "/auth/login", { token }),
   logout: () => call<void>("POST", "/auth/logout"),
   status: () => call<StatusResponse>("GET", "/status"),
+  activity: (days = 7) => call<ActivityResponse>("GET", `/activity?days=${days}`),
   ping: (note: string) =>
     call<{ counted: boolean; user: UserStatus }>("POST", "/ping", { source: "manual", note }),
 };

@@ -37,7 +37,40 @@ func StatusLine(u api.UserStatus, isMe bool) string {
 	default:
 		st = u.State
 	}
-	return fmt.Sprintf("%s — 🔥%d (рекорд %d) — %s", who, u.Streak, u.Best, st)
+	line := fmt.Sprintf("%s — 🔥%d (рекорд %d) — %s", who, u.Streak, u.Best, st)
+	if p := PresenceText(u.Presence, time.Now()); p != "" {
+		line += " · " + p
+	}
+	return line
+}
+
+// PresenceText is a Discord-like "now in GoLand · 25хв" string.
+func PresenceText(p *api.Presence, now time.Time) string {
+	switch {
+	case p == nil || !p.Online:
+		return ""
+	case p.Idle:
+		return "💤 AFK"
+	case p.App == "":
+		return ""
+	case p.Since.IsZero():
+		return "🖥 " + p.App
+	default:
+		return "🖥 " + p.App + " " + FormatDuration(now.Sub(p.Since))
+	}
+}
+
+// FormatDuration renders a duration like "1г 05хв" or "25хв".
+func FormatDuration(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	if h == 0 {
+		return fmt.Sprintf("%dхв", m)
+	}
+	return fmt.Sprintf("%dг %02dхв", h, m)
 }
 
 // Tooltip is the tray hover text (Windows limits it to ~127 chars).

@@ -47,6 +47,8 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.Handle("POST /ping", s.auth(http.HandlerFunc(s.handlePing)))
 	mux.Handle("GET /status", s.auth(http.HandlerFunc(s.handleStatus)))
+	mux.Handle("POST /presence", s.auth(http.HandlerFunc(s.handlePresence)))
+	mux.Handle("GET /activity", s.auth(http.HandlerFunc(s.handleActivity)))
 
 	// Browser sessions: an invite token is exchanged for an HttpOnly cookie.
 	mux.HandleFunc("POST /auth/login", s.handleLogin)
@@ -148,6 +150,9 @@ func (s *Server) userStatus(ctx context.Context, u store.User, now time.Time) (a
 	if fe, err := s.Store.LastEvent(ctx, u.ID, store.EventFailed); err == nil {
 		us.LastFailure = &api.Failure{ID: fe.ID, Day: fe.Day, At: fe.CreatedAt}
 	} else if !errors.Is(err, store.ErrNotFound) {
+		return api.UserStatus{}, err
+	}
+	if err := s.presenceFor(ctx, u, now, &us); err != nil {
 		return api.UserStatus{}, err
 	}
 	return us, nil

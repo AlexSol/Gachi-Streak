@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { api, ApiError, type Me, type StatusResponse, type UserStatus } from "./api";
 import type { Dict, Lang } from "./i18n";
+import { AppBars, PresenceLine, WeekStats } from "./Activity";
 
 const POLL_MS = 30_000;
 
@@ -128,6 +129,8 @@ export function Dashboard({
         </section>
       )}
 
+      <WeekStats t={t} lang={lang} me={me.name} />
+
       {updatedAt && (
         <p class="updated">
           {t.updated} {updatedAt.toLocaleTimeString(lang === "uk" ? "uk-UA" : "en-GB")}
@@ -152,6 +155,8 @@ function UserCard({ u, isMe, t, lang }: { u: UserStatus; isMe: boolean; t: Dict;
           {stateIcon[u.state]} {t.state[u.state]}
         </span>
       </header>
+
+      <PresenceLine p={u.presence} t={t} now={now} />
 
       <div class="streak">
         <span class="fire" aria-hidden="true">
@@ -181,6 +186,11 @@ function UserCard({ u, isMe, t, lang }: { u: UserStatus; isMe: boolean; t: Dict;
           </div>
         )}
       </dl>
+
+      <div class="today-apps">
+        <h3>{t.todayApps}</h3>
+        {u.today_apps?.length ? <AppBars apps={u.today_apps} t={t} /> : <p class="muted small">{t.noApps}</p>}
+      </div>
     </article>
   );
 }

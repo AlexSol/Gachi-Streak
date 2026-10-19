@@ -64,6 +64,19 @@ events(id PK, user_id → users, kind['warning'|'failed'], day, created_at)
 
 `github` клієнт надіслати не може (сервер відповідає 400) — це джерело резервоване за серверним чекером.
 
+## Статистика програм (presence)
+
+Клієнт кожні 5 с викликає `GetForegroundWindow` → `GetWindowThreadProcessId` → `QueryFullProcessImageNameW` і бере лише ім'я `.exe`, яке потім перетворює на зрозумілу назву (`goland64.exe` → `GoLand`). Простій визначається через `GetLastInputInfo`: 5 хв без вводу означають AFK. Між двома замірами зараховується не більше 15 с, тому сон чи гібернація не перетворюються на години фейкового часу. Підсумки дня лежать локально в `activity.json`.
+
+Раз на опитування клієнт шле `POST /presence` з поточною програмою і **повними** підсумками дня, а не дельтами, тож повтори безпечні. Сервер зберігає їх як `MAX(seconds)`.
+
+```sql
+app_usage(user_id, day, app, seconds, PRIMARY KEY(user_id, day, app))
+presence(user_id PK, app, since, idle, updated_at)
+```
+
+Якщо останній звіт старший за 3 хв, `/status` показує клієнта як offline.
+
 ## Відомі обмеження v1
 
 - Без зв'язку з сервером клієнт тримає останній відомий стан.

@@ -151,6 +151,20 @@ CREATE TABLE IF NOT EXISTS sessions (
 	user_agent TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE TABLE IF NOT EXISTS app_usage (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	day     TEXT NOT NULL,
+	app     TEXT NOT NULL,
+	seconds INTEGER NOT NULL,
+	PRIMARY KEY (user_id, day, app)
+);
+CREATE TABLE IF NOT EXISTS presence (
+	user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+	app        TEXT NOT NULL DEFAULT '',
+	since      TEXT NOT NULL DEFAULT '',
+	idle       INTEGER NOT NULL DEFAULT 0,
+	updated_at TEXT NOT NULL
+);
 `
 
 // Times are stored as RFC3339 UTC text: portable across drivers and readable.

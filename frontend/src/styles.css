@@ -119,3 +119,32 @@ input {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* presence (Discord-like) */
+.presence { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
+.presence b { color: var(--text); }
+.presence .mono { font-family: var(--mono); }
+.pdot { width: 9px; height: 9px; border-radius: 50%; background: #5a4f4c; flex: none; }
+.presence.on .pdot { background: var(--safe); box-shadow: 0 0 8px #2ecc7188; }
+.presence.idle .pdot { background: #f1c40f; }
+.presence.off { opacity: .75; }
+
+/* program bars */
+.today-apps { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.today-apps h3, .week h2 { margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: .3px; }
+.week h2 { font-size: 16px; color: var(--text); }
+.small { font-size: 14px; margin: 0; }
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bar-label { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; }
+.bar-label .mono { font-family: var(--mono); color: var(--muted); }
+.bar-track { height: 6px; border-radius: 4px; background: #ffffff10; margin-top: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; }
+
+/* week stats */
+.week-grid { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.week-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.week-head .mono { font-family: var(--mono); color: var(--text); }
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 90px; align-items: end; margin-bottom: 14px; }
+.day { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.day-bar { width: 100%; max-width: 26px; border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, var(--accent), #c43cff); }
+.day-label { font-size: 11px; color: var(--muted); }

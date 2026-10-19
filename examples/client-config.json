@@ -10,5 +10,8 @@
   "local_repos": [
     "C:\\code\\go-diary"
   ],
-  "local_author_emails": []
+  "local_author_emails": [],
+  "activity_tracking": true,
+  "share_activity": true,
+  "activity_ignore": ["Telegram.exe", "KeePassXC.exe"]
 }

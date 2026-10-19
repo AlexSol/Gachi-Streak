@@ -22,6 +22,56 @@ type UserStatus struct {
 	Deadline      time.Time `json:"deadline"`
 	SecondsLeft   int64     `json:"seconds_left"`
 	LastFailure   *Failure  `json:"last_failure,omitempty"`
+
+	// Discord-like presence: what the user has in the foreground right now.
+	Presence *Presence `json:"presence,omitempty"`
+	// Time per program today (user's own day), longest first.
+	TodayApps []AppTime `json:"today_apps,omitempty"`
+}
+
+// AppTime is time spent in one program.
+type AppTime struct {
+	App     string `json:"app"`
+	Seconds int64  `json:"seconds"`
+}
+
+// Presence is the current foreground program of a user.
+type Presence struct {
+	App       string    `json:"app,omitempty"` // "" = nothing / away
+	Since     time.Time `json:"since,omitempty"`
+	Idle      bool      `json:"idle"`
+	Online    bool      `json:"online"` // the client reported recently
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// PresenceRequest is sent by the desktop client to POST /presence.
+// Usage holds full totals for Day (not deltas), so retries are harmless.
+type PresenceRequest struct {
+	App   string           `json:"app"`
+	Since time.Time        `json:"since,omitempty"`
+	Idle  bool             `json:"idle"`
+	Day   string           `json:"day"`
+	Usage map[string]int64 `json:"usage"`
+}
+
+// ActivityUser is one user's program statistics over a period.
+type ActivityUser struct {
+	Name         string    `json:"name"`
+	TotalSeconds int64     `json:"total_seconds"`
+	Apps         []AppTime `json:"apps"`
+	ByDay        []DayTime `json:"by_day"`
+}
+
+// DayTime is the tracked time on one day.
+type DayTime struct {
+	Day     string `json:"day"`
+	Seconds int64  `json:"seconds"`
+}
+
+// ActivityResponse is returned by GET /activity?days=N.
+type ActivityResponse struct {
+	Days  int            `json:"days"`
+	Users []ActivityUser `json:"users"`
 }
 
 // StatusResponse is returned by GET /status.

@@ -49,3 +49,5 @@ cd .. && go build -o bin/gachi-server ./cmd/server
 | `GET` | `/auth/me` | поточний користувач або 401 |
 | `GET` | `/status` | стан обох учасників |
 | `POST` | `/ping` | `{"source":"manual","note":"…"}` |
+| `GET` | `/activity?days=7` | час у програмах за N днів (1–31) по кожному учаснику |
+| `POST` | `/presence` | (desktop-клієнт) поточна програма + підсумки дня |

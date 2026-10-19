@@ -42,6 +42,12 @@ func (c *APIClient) Ping(ctx context.Context, source, note string) (api.PingResp
 	return out, c.do(ctx, http.MethodPost, "/ping", body, &out)
 }
 
+// Presence calls POST /presence with the current program and today's totals.
+func (c *APIClient) Presence(ctx context.Context, r api.PresenceRequest) error {
+	body, _ := json.Marshal(r)
+	return c.do(ctx, http.MethodPost, "/presence", body, nil)
+}
+
 func (c *APIClient) do(ctx context.Context, method, path string, body []byte, out any) error {
 	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, bytes.NewReader(body))
 	if err != nil {
@@ -60,12 +66,18 @@ func (c *APIClient) do(ctx context.Context, method, path string, body []byte, ou
 	if err != nil {
 		return err
 	}
+	if resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		var e api.Error
 		if json.Unmarshal(data, &e) == nil && e.Error != "" {
 			return fmt.Errorf("server: %s (%d)", e.Error, resp.StatusCode)
 		}
 		return fmt.Errorf("server: %s", resp.Status)
+	}
+	if out == nil {
+		return nil
 	}
 	return json.Unmarshal(data, out)
 }

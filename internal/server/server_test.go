@@ -269,3 +269,52 @@ func TestNotFound(t *testing.T) {
 		t.Fatalf("healthz: %d %q", resp.StatusCode, body)
 	}
 }
+
+func TestPresenceAndActivity(t *testing.T) {
+	f := setup(t)
+	f.now = time.Date(2026, 10, 19, 15, 0, 0, 0, time.UTC)
+	body := `{"app":"GoLand","since":"2026-10-19T14:30:00Z","idle":false,"day":"2026-10-19",
+	          "usage":{"GoLand":5400,"Chrome":1200,"Bad\u0007Name":60}}`
+	if code := f.do(t, "POST", "/presence", f.alex, body, nil); code != 204 {
+		t.Fatalf("presence: %d", code)
+	}
+	if code := f.do(t, "POST", "/presence", f.alex, `{"day":"2026-10-10","usage":{}}`, nil); code != 400 {
+		t.Fatalf("old day must be rejected: %d", code)
+	}
+
+	s := f.status(t, f.sasha)
+	a := s["alex"]
+	if a.Presence == nil || !a.Presence.Online || a.Presence.App != "GoLand" {
+		t.Fatalf("presence %+v", a.Presence)
+	}
+	if len(a.TodayApps) != 3 || a.TodayApps[0].App != "GoLand" || a.TodayApps[0].Seconds != 5400 {
+		t.Fatalf("today apps %+v", a.TodayApps)
+	}
+	for _, x := range a.TodayApps {
+		if strings.ContainsRune(x.App, '\a') {
+			t.Fatal("control chars must be stripped")
+		}
+	}
+	if s["sasha"].Presence != nil {
+		t.Fatal("sasha never reported")
+	}
+
+	// 5 minutes later without reports → offline, app hidden
+	f.now = f.now.Add(5 * time.Minute)
+	if p := f.status(t, f.alex)["alex"].Presence; p == nil || p.Online || p.App != "" {
+		t.Fatalf("stale presence %+v", p)
+	}
+
+	var act api.ActivityResponse
+	if code := f.do(t, "GET", "/activity?days=7", f.alex, "", &act); code != 200 {
+		t.Fatalf("activity %d", code)
+	}
+	for _, u := range act.Users {
+		if len(u.ByDay) != 7 {
+			t.Fatalf("by_day len %d", len(u.ByDay))
+		}
+		if u.Name == "alex" && (u.TotalSeconds != 5400+1200+60 || u.Apps[0].App != "GoLand") {
+			t.Fatalf("alex activity %+v", u)
+		}
+	}
+}

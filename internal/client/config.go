@@ -37,6 +37,13 @@ type Config struct {
 	LocalRepos []string `json:"local_repos"`
 	// Author emails that count. Empty = each repo's own `git config user.email`.
 	LocalAuthorEmails []string `json:"local_author_emails"`
+
+	// Foreground-program statistics (program names only, never window titles).
+	ActivityTracking bool `json:"activity_tracking"`
+	// Share the current program and today's stats with the partner (like Discord).
+	ShareActivity bool `json:"share_activity"`
+	// Programs that are never tracked, e.g. ["Telegram.exe", "KeePassXC.exe"].
+	ActivityIgnore []string `json:"activity_ignore"`
 }
 
 // DefaultConfig returns a config with defaults filled in, relative to dataDir.
@@ -52,6 +59,9 @@ func DefaultConfig(dataDir string) Config {
 		FailedSound:       filepath.Join(dataDir, "sounds", "failed"),
 		LocalRepos:        []string{},
 		LocalAuthorEmails: []string{},
+		ActivityTracking:  true,
+		ShareActivity:     true,
+		ActivityIgnore:    []string{},
 	}
 }
 

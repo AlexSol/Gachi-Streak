@@ -116,3 +116,30 @@ func TestSessions(t *testing.T) {
 		t.Fatal("logout must kill the session")
 	}
 }
+
+func TestPresenceAndUsage(t *testing.T) {
+	ctx := context.Background()
+	s := openTest(t)
+	now := time.Date(2026, 10, 19, 10, 0, 0, 0, time.UTC)
+	u, _, _ := s.CreateUser(ctx, User{Name: "alex", Timezone: "UTC"}, now)
+
+	if _, err := s.GetPresence(ctx, u.ID); err != ErrNotFound {
+		t.Fatalf("no presence yet: %v", err)
+	}
+	p := Presence{App: "GoLand", Since: now.Add(-time.Hour), UpdatedAt: now}
+	if err := s.SavePresence(ctx, u.ID, p, "2026-10-19", map[string]int64{"GoLand": 3600, "Chrome": 600}); err != nil {
+		t.Fatal(err)
+	}
+	// a client that lost its local state sends smaller totals: kept at max
+	if err := s.SavePresence(ctx, u.ID, p, "2026-10-19", map[string]int64{"GoLand": 100}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.GetPresence(ctx, u.ID)
+	if got.App != "GoLand" || !got.Since.Equal(p.Since) {
+		t.Fatalf("presence %+v", got)
+	}
+	rows, _ := s.UsageRange(ctx, u.ID, "2026-10-19", "2026-10-19")
+	if len(rows) != 2 || rows[0].App != "GoLand" || rows[0].Seconds != 3600 {
+		t.Fatalf("usage %+v", rows)
+	}
+}
