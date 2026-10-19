@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import { api, type AchievementDef, type Me } from "./api";
 import { useI18n } from "./i18n";
 import { Login } from "./Login";
+import { DungeonBg } from "./DungeonBg";
 import { Dashboard } from "./Dashboard";
 import { AchievementsPage, RanksPage } from "./Progress";
 
@@ -64,6 +65,8 @@ export function App() {
 
   return (
     <div class="shell">
+      {/* Main pages: floating ♂ / Go glyphs at fixed strength, no pointer parallax. */}
+      {auth.kind === "user" && <DungeonBg effect="glyphs" strength={100} parallax={false} />}
       <header class="top">
         <a class="brand" href="#/">
           <span class="mars" aria-hidden="true">♂</span> Gachi Streak
