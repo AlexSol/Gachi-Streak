@@ -24,6 +24,8 @@
 
 ### 1. Сервер
 
+Linux / macOS:
+
 ```bash
 go mod tidy            # перший раз: підтягне залежності й створить go.sum
 go build -o bin/gachi-server ./cmd/server
@@ -33,6 +35,16 @@ go build -o bin/gachi-server ./cmd/server
 ./bin/gachi-server user add -name buddy -tz Europe/Kyiv   -github buddy-login
 
 ./bin/gachi-server serve -addr :8080
+```
+
+Windows (PowerShell) — обов'язково з `.exe`, інакше Windows не знає, чим запускати файл, і питає «Select an app to open»:
+
+```powershell
+go mod tidy
+go build -o bin\gachi-server.exe .\cmd\server
+
+.\bin\gachi-server.exe user add -name alex -tz Europe/Lisbon -github AlexSol
+.\bin\gachi-server.exe serve -addr :8080
 ```
 
 Або в Docker:
