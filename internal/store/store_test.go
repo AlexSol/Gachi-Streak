@@ -79,3 +79,40 @@ func TestUserTokenAndStreakFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSessions(t *testing.T) {
+	ctx := context.Background()
+	s := openTest(t)
+	now := time.Date(2026, 10, 19, 10, 0, 0, 0, time.UTC)
+	u, _, err := s.CreateUser(ctx, User{Name: "alex", Timezone: "UTC"}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sid, err := s.CreateSession(ctx, u.ID, time.Hour, "test-agent", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.UserBySession(ctx, sid, now.Add(30*time.Minute)); err != nil || got.ID != u.ID {
+		t.Fatalf("live session: %+v %v", got, err)
+	}
+	if _, err := s.UserBySession(ctx, sid, now.Add(2*time.Hour)); err != ErrNotFound {
+		t.Fatalf("expired session must not work: %v", err)
+	}
+	if n, _ := s.PurgeExpiredSessions(ctx, now.Add(2*time.Hour)); n != 1 {
+		t.Fatalf("purged %d", n)
+	}
+
+	sid, _ = s.CreateSession(ctx, u.ID, time.Hour, "", now)
+	if _, err := s.RotateToken(ctx, "alex"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UserBySession(ctx, sid, now); err != ErrNotFound {
+		t.Fatal("token rotation must kill sessions")
+	}
+
+	sid, _ = s.CreateSession(ctx, u.ID, time.Hour, "", now)
+	s.DeleteSession(ctx, sid)
+	if _, err := s.UserBySession(ctx, sid, now); err != ErrNotFound {
+		t.Fatal("logout must kill the session")
+	}
+}

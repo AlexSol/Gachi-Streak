@@ -24,6 +24,7 @@ import (
 
 	"github.com/AlexSol/gachi-streak/internal/server"
 	"github.com/AlexSol/gachi-streak/internal/store"
+	"github.com/AlexSol/gachi-streak/internal/webui"
 )
 
 func main() {
@@ -91,6 +92,7 @@ func cmdServe(args []string) error {
 	defer st.Close()
 
 	srv := server.New(st, *warn, log)
+	srv.UI = webui.Handler("/app/")
 	go srv.RunDeadlineWorker(ctx, *tick)
 	if *ghEvery > 0 {
 		gh := &server.GitHubChecker{S: srv, Token: os.Getenv("GITHUB_TOKEN")}

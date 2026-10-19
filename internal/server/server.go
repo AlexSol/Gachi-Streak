@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/AlexSol/gachi-streak/internal/api"
@@ -22,6 +23,12 @@ type Server struct {
 	Warn  time.Duration // warning window before the deadline
 	Log   *slog.Logger
 	Now   func() time.Time
+
+	// UI serves the single-page app under /app/ (nil = not mounted).
+	UI http.Handler
+
+	limOnce sync.Once
+	lim     *loginLimiter
 }
 
 // New creates a server with sane defaults.
@@ -40,28 +47,17 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.Handle("POST /ping", s.auth(http.HandlerFunc(s.handlePing)))
 	mux.Handle("GET /status", s.auth(http.HandlerFunc(s.handleStatus)))
-	return s.logRequests(s.withNotFound(mux))
-}
 
-func (s *Server) auth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if !ok || token == "" {
-			writeErr(w, http.StatusUnauthorized, "missing bearer token")
-			return
-		}
-		u, err := s.Store.UserByToken(r.Context(), token)
-		if errors.Is(err, store.ErrNotFound) {
-			writeErr(w, http.StatusUnauthorized, "invalid token")
-			return
-		}
-		if err != nil {
-			s.Log.Error("auth", "err", err)
-			writeErr(w, http.StatusInternalServerError, "internal error")
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
-	})
+	// Browser sessions: an invite token is exchanged for an HttpOnly cookie.
+	mux.HandleFunc("POST /auth/login", s.handleLogin)
+	mux.HandleFunc("POST /auth/logout", s.handleLogout)
+	mux.Handle("GET /auth/me", s.auth(http.HandlerFunc(s.handleMe)))
+
+	if s.UI != nil {
+		mux.Handle("GET /app/", s.UI)
+		mux.Handle("GET /app", http.RedirectHandler("/app/", http.StatusMovedPermanently))
+	}
+	return s.logRequests(s.withNotFound(mux))
 }
 
 func userFrom(r *http.Request) store.User {

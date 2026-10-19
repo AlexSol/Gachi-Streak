@@ -49,6 +49,11 @@
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 14px;
     background: #000a; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: #ffd27a;
   }
+  .enter {
+    display: inline-block; margin-top: 10px; padding: 10px 16px; border-radius: 10px;
+    background: var(--accent); color: #1a0d02; font-weight: 700; text-decoration: none;
+  }
+  .enter:hover { filter: brightness(1.1); }
   footer { margin-top: 22px; font-size: 13px; color: #776a66; }
   [data-lang] { display: none; }
   html[lang="uk"] [data-lang="uk"], html[lang="en"] [data-lang="en"] { display: block; }
@@ -65,6 +70,7 @@
     <p>Ресурс ще в розробці. Тут живе сервер, який рахує щоденний стрик вивчення Go і жорстко карає за прокрастинацію.</p>
     <p>Сторінка для людей з'явиться пізніше. А поки — повертайся до коду: дедлайн сам себе не закриє.</p>
     <div class="status"><span class="dot"></span>Сервер працює · API: <code>/status</code>, <code>/ping</code></div>
+    <p><a class="enter" href="/app/">Увійти за інвайтом →</a></p>
   </section>
 
   <section data-lang="en">
@@ -73,6 +79,7 @@
     <p>This resource is still under development. It hosts the server that tracks a daily Go learning streak and punishes procrastination without mercy.</p>
     <p>A human-friendly page is coming later. Meanwhile, get back to your code — the deadline won't close itself.</p>
     <div class="status"><span class="dot"></span>Server is up · API: <code>/status</code>, <code>/ping</code></div>
+    <p><a class="enter" href="/app/">Sign in with an invite →</a></p>
   </section>
 
   <footer>♂ boy next door, commit today ♂</footer>

@@ -143,6 +143,14 @@ CREATE TABLE IF NOT EXISTS events (
 	created_at TEXT NOT NULL,
 	UNIQUE(user_id, kind, day)
 );
+CREATE TABLE IF NOT EXISTS sessions (
+	id_hash    TEXT PRIMARY KEY,
+	user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL,
+	user_agent TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 `
 
 // Times are stored as RFC3339 UTC text: portable across drivers and readable.
@@ -215,6 +223,11 @@ func (s *Store) RotateToken(ctx context.Context, name string) (string, error) {
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return "", ErrNotFound
+	}
+	// A new invite token logs the user out of every browser.
+	if _, err := s.db.ExecContext(ctx,
+		`DELETE FROM sessions WHERE user_id = (SELECT id FROM users WHERE name = ?)`, name); err != nil {
+		return "", err
 	}
 	return token, nil
 }

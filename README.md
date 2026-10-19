@@ -108,6 +108,10 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 Поки демо активне, опитування сервера шпалери не чіпає. Після перезапуску клієнта демо скидається.
 
+## Веб-інтерфейс
+
+`https://<сервер>/app/` — вхід за інвайт-токеном і дашборд обох стриків з кнопкою «вчив Go». Деталі й локальна розробка — [docs/frontend.md](docs/frontend.md).
+
 ## API
 
 `GET /` — сторінка «в розробці» для браузера (українська або англійська, за мовою браузера/системи).
@@ -128,6 +132,8 @@ curl -H "Authorization: Bearer $T" http://localhost:8080/status
 ```
 cmd/server        — HTTP API + воркери + CLI для користувачів
 cmd/client        — трей-агент для Windows
+frontend          — веб-інтерфейс (Vite + Preact + TypeScript)
+internal/webui    — вшитий у сервер зібраний фронт (/app/)
 internal/streak   — чиста доменна логіка (дні, дедлайни, стани)
 internal/store    — SQLite (modernc, без CGO; тег cgosqlite → mattn/go-sqlite3)
 internal/server   — хендлери, воркер дедлайнів, GitHub-перевірка

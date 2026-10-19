@@ -1,0 +1,51 @@
+# Веб-інтерфейс (MVP)
+
+Preact + TypeScript + Vite, код у `frontend/`. Зібраний фронт вшивається в бінарник сервера (`internal/webui`, `go:embed`) і відкривається за адресою **`/app/`**.
+
+## Що вміє
+
+- **Вхід за інвайт-токеном** `gs_…`. Токен видає адмін (`gachi-server user add` / `user token`). Сервер міняє його на сесію: cookie `gs_session` з `HttpOnly`, `SameSite=Lax`, `Secure` (на HTTPS), живе 30 днів. JavaScript токен ніде не зберігає.
+- **Дашборд**: картки обох учасників — стрик, рекорд, стан (✅ / ⏳ / ⚠️ / 💀), живий таймер до дедлайну (кожен у своєму часовому поясі), остання активність і провал. Оновлюється кожні 30 с і при поверненні на вкладку.
+- **Кнопка «✅ Я сьогодні вчив Go»** з необов'язковою приміткою, що вчив.
+- **Українська / англійська** — за мовою браузера, перемикач у шапці (вибір запам'ятовується).
+- Вихід (`POST /auth/logout`).
+
+## Безпека
+
+- Перевипуск токена (`user token -name …`) розлогінює всі браузери цього користувача.
+- Запити з cookie, що змінюють дані (`POST /ping`, `/auth/*`), приймаються лише з власного origin (CSRF).
+- Не більше 10 невдалих спроб входу з однієї IP за 15 хвилин (далі 429).
+- Desktop-клієнт і `curl` і далі працюють з `Authorization: Bearer gs_…`.
+
+## Розробка
+
+```bash
+# термінал 1 — сервер
+go run ./cmd/server serve -addr :8080
+
+# термінал 2 — фронт з hot reload на http://localhost:5173/app/
+cd frontend
+npm ci
+npm run dev
+```
+
+Vite проксує `/status`, `/ping`, `/auth` на `http://localhost:8080` (інший адрес — змінна `GACHI_API`).
+
+Збірка у бінарник:
+
+```bash
+cd frontend && npm run build   # → internal/webui/dist
+cd .. && go build -o bin/gachi-server ./cmd/server
+```
+
+Без `npm run build` сервер теж збирається, але `/app/` відповідатиме «frontend is not built». На Fly все відбувається автоматично: Dockerfile має окремий етап з Node.
+
+## API для фронта
+
+| Метод | Шлях | Що робить |
+|---|---|---|
+| `POST` | `/auth/login` | `{"token":"gs_…"}` → ставить cookie, повертає `{name, timezone}` |
+| `POST` | `/auth/logout` | видаляє сесію |
+| `GET` | `/auth/me` | поточний користувач або 401 |
+| `GET` | `/status` | стан обох учасників |
+| `POST` | `/ping` | `{"source":"manual","note":"…"}` |

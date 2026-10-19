@@ -38,6 +38,9 @@ func (s *Server) CheckDeadlines(ctx context.Context) {
 			s.Log.Error("worker", "user", u.Name, "err", err)
 		}
 	}
+	if _, err := s.Store.PurgeExpiredSessions(ctx, now); err != nil {
+		s.Log.Error("worker: purge sessions", "err", err)
+	}
 }
 
 func (s *Server) checkUser(ctx context.Context, u store.User, now time.Time) error {
