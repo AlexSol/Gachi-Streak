@@ -72,7 +72,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 1. Запусти `bin\gachi-client.exe` — він створить `%APPDATA%\GachiStreak\config.json` і відкриє його.
 2. Впиши `server_url` і `token`, збережи, запусти ще раз.
-3. Поклади картинки (`.jpg/.png/.bmp`) у `%APPDATA%\GachiStreak\images\warning` і `...\images\failed`. Поки папки порожні, ставиться згенерована смугаста заглушка.
+3. Картинки й звуки вже вшиті в `.exe`: 5 шпалер для попередження, 5 для провалу і 7 звуків ([assets/](assets/README.md)). При першому запуску вони розпакуються в `%APPDATA%\GachiStreak\images\…` та `…\sounds\…`. Свої `.jpg/.png/.bmp` і `.wav` просто додай у ці папки, щоразу береться випадковий файл. У папку, де вже є твої файли, стандартні не підкладаються.
 4. У меню трею увімкни «Запускати з Windows».
 
 #### Локальні репозиторії
@@ -90,7 +90,9 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 - Потрібен `git` у `PATH`. Консоль при цьому не блимає.
 - Після змін у конфігу перезапусти клієнт. Стан перевірки видно в меню трею (рядок «📁 …»).
 
-Приклад конфігу — [`examples/client-config.json`](examples/client-config.json). Звук — шлях до `.wav` або системний аліас (`SystemHand`, `SystemExclamation`, `SystemAsterisk`).
+Приклад конфігу — [`examples/client-config.json`](examples/client-config.json). Звук — папка з `.wav` (грає випадковий), шлях до одного `.wav` або системний аліас (`SystemHand`, `SystemExclamation`).
+
+> Якщо конфіг створено старою версією, там стоїть `"warning_sound": "SystemExclamation"` і `"failed_sound": "SystemHand"`. Щоб увімкнути вшиті звуки, заміни на `"%APPDATA%"`-шляхи до папок, наприклад `"C:\\Users\\you\\AppData\\Roaming\\GachiStreak\\sounds\\warning"` і `"...\\sounds\\failed"`.
 
 ## API
 

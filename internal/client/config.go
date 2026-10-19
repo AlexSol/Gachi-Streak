@@ -26,8 +26,9 @@ type Config struct {
 	// Re-pick a random image every N minutes while punished (0 = never).
 	RotateMinutes int `json:"rotate_minutes"`
 
-	// Path to a .wav file, or a Windows sound alias like "SystemHand",
-	// "SystemExclamation", "SystemAsterisk". Empty = silence.
+	// A folder with .wav files (a random one is played), a path to a .wav
+	// file, or a Windows sound alias like "SystemHand", "SystemExclamation".
+	// Empty = silence.
 	WarningSound string `json:"warning_sound"`
 	FailedSound  string `json:"failed_sound"`
 
@@ -47,8 +48,8 @@ func DefaultConfig(dataDir string) Config {
 		WarningImagesDir:  filepath.Join(dataDir, "images", "warning"),
 		FailedImagesDir:   filepath.Join(dataDir, "images", "failed"),
 		RotateMinutes:     30,
-		WarningSound:      "SystemExclamation",
-		FailedSound:       "SystemHand",
+		WarningSound:      filepath.Join(dataDir, "sounds", "warning"),
+		FailedSound:       filepath.Join(dataDir, "sounds", "failed"),
 		LocalRepos:        []string{},
 		LocalAuthorEmails: []string{},
 	}

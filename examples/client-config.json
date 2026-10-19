@@ -5,8 +5,8 @@
   "warning_images_dir": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\images\\warning",
   "failed_images_dir": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\images\\failed",
   "rotate_minutes": 30,
-  "warning_sound": "SystemExclamation",
-  "failed_sound": "C:\\Users\\YOU\\Music\\punishment.wav",
+  "warning_sound": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\sounds\\warning",
+  "failed_sound": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\sounds\\failed",
   "local_repos": [
     "C:\\code\\go-diary"
   ],

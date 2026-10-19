@@ -17,6 +17,7 @@ import (
 
 	"fyne.io/systray"
 
+	"github.com/AlexSol/gachi-streak/assets"
 	"github.com/AlexSol/gachi-streak/internal/api"
 	"github.com/AlexSol/gachi-streak/internal/client"
 	"github.com/AlexSol/gachi-streak/internal/winapi"
@@ -77,6 +78,8 @@ func main() {
 		_ = winapi.Open(cfgPath)
 		return
 	}
+
+	installAssets(cfg, dataDir)
 
 	desk := &winapi.Desktop{DataDir: dataDir, Managed: []string{cfg.WarningImagesDir, cfg.FailedImagesDir}}
 	a := &app{
@@ -287,6 +290,29 @@ func (a *app) snooze() {
 	a.mu.Unlock()
 	if err != nil {
 		winapi.MessageBox(title, "Не вдалося повернути шпалери:\n"+err.Error(), winapi.MBError)
+	}
+}
+
+// installAssets unpacks the bundled wallpapers and sounds into empty folders.
+func installAssets(cfg client.Config, dataDir string) {
+	jobs := []struct {
+		src, dst string
+		exts     map[string]bool
+	}{
+		{"images/warning", cfg.WarningImagesDir, client.ImageExts()},
+		{"images/failed", cfg.FailedImagesDir, client.ImageExts()},
+		{"sounds/warning", filepath.Join(dataDir, "sounds", "warning"), client.SoundExts()},
+		{"sounds/failed", filepath.Join(dataDir, "sounds", "failed"), client.SoundExts()},
+	}
+	for _, j := range jobs {
+		if j.dst == "" {
+			continue
+		}
+		if n, err := client.InstallDefaults(assets.FS, j.src, j.dst, j.exts); err != nil {
+			log.Println("assets:", j.dst, err)
+		} else if n > 0 {
+			log.Printf("assets: installed %d files into %s", n, j.dst)
+		}
 	}
 }
 

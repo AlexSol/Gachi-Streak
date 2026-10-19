@@ -92,7 +92,7 @@ func (e *Engine) Apply(me api.UserStatus, now time.Time) (bool, error) {
 		e.State.LastFailureID = me.LastFailure.ID
 		changed = true
 		if want == ModeFailed {
-			e.Desk.PlaySound(e.Cfg.FailedSound)
+			e.Desk.PlaySound(ResolveSound(e.Cfg.FailedSound, e.Rand))
 		}
 	}
 
@@ -128,7 +128,7 @@ func (e *Engine) Apply(me api.UserStatus, now time.Time) (bool, error) {
 			return changed, err
 		}
 		if entering && want == ModeWarning {
-			e.Desk.PlaySound(e.Cfg.WarningSound)
+			e.Desk.PlaySound(ResolveSound(e.Cfg.WarningSound, e.Rand))
 		}
 		e.State.Mode, e.State.Image, e.State.SetAt = want, img, now
 		changed = true
