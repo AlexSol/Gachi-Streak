@@ -1,0 +1,30 @@
+/* Theme tokens shared by widget.html and settings.html (inlined by pageHTML).
+   Ids must match client.WidgetThemes. */
+:root, [data-theme="gachi"] {
+  --bg: #110d0e; --panel: #181214; --text: #f1ece9; --muted: #a99c97; --line: #33252a;
+  --accent: #ff8c1a; --safe: #2ecc71; --warn: #ff8c1a; --fail: #ff3b3b; --pending: #9a8f8b;
+  --glow: #3a1d10; --stripe: #111; --hover: #ffffff14; --on-accent: #1a0d02; --dot: #5a4f4c; --idle: #f1c40f;
+  --font: "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Code", Consolas, ui-monospace, monospace;
+}
+[data-theme="dark"] {
+  --bg: #0f1115; --panel: #171a21; --text: #e8eaed; --muted: #9aa0a6; --line: #2a2f3a;
+  --accent: #4c8dff; --safe: #3ddc84; --warn: #ffb020; --fail: #ff5252; --pending: #8a9099;
+  --glow: #1a2740; --stripe: #0b0d12; --on-accent: #fff; --dot: #4a4f58;
+}
+[data-theme="light"] {
+  --bg: #f6f3f1; --panel: #fff; --text: #1d1a19; --muted: #6f6662; --line: #e3dbd7;
+  --accent: #e8740c; --safe: #1e9e57; --warn: #e8740c; --fail: #d92c2c; --pending: #8a817d;
+  --glow: #ffdcbd; --stripe: #2a2422; --hover: #0000000f; --on-accent: #fff; --dot: #c9c0bc; --idle: #d4a500;
+}
+[data-theme="neon"] {
+  --bg: #0d0716; --panel: #160d24; --text: #f5eaff; --muted: #a493b8; --line: #2f1d47;
+  --accent: #ff3ec8; --safe: #3dffb0; --warn: #ffb03d; --fail: #ff4d6d; --pending: #9a88b0;
+  --glow: #4a1060; --stripe: #0a0510; --on-accent: #1a0018; --dot: #4b3a60; --idle: #ffe66d;
+}
+[data-theme="matrix"] {
+  --bg: #050a06; --panel: #0a120c; --text: #c8ffd4; --muted: #5f9a6b; --line: #163020;
+  --accent: #39ff6a; --safe: #39ff6a; --warn: #ffd23f; --fail: #ff4b3e; --pending: #5f9a6b;
+  --glow: #0d2a14; --stripe: #020502; --on-accent: #021006; --dot: #24402c; --idle: #ffd23f;
+  --font: var(--mono);
+}

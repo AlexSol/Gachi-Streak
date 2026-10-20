@@ -17,5 +17,17 @@
   "show_widget": true,
   "widget_mode": "desktop",
   "widget_snap_px": 20,
+  "widget_theme": "gachi",
+  "widget_background": {
+    "default": "",
+    "safe": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\safe",
+    "pending": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\pending",
+    "warning": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\warning",
+    "failed": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\failed"
+  },
+  "widget_background_dim": 0.55,
+  "widget_character": true,
+  "screen_attacks": true,
+  "screen_attack_minutes": 45,
   "achievement_notifications": true
 }

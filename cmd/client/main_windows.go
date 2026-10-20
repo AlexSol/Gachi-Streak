@@ -21,6 +21,7 @@ import (
 	"github.com/AlexSol/gachi-streak/assets"
 	"github.com/AlexSol/gachi-streak/internal/api"
 	"github.com/AlexSol/gachi-streak/internal/client"
+	"github.com/AlexSol/gachi-streak/internal/splash"
 	"github.com/AlexSol/gachi-streak/internal/winapi"
 )
 
@@ -65,6 +66,12 @@ type app struct {
 	widgetItem *systray.MenuItem
 	modeDesk   *systray.MenuItem
 	modeOver   *systray.MenuItem
+	themeItems []*systray.MenuItem // parallel to client.WidgetThemes
+	media      *client.MediaServer // widget backgrounds; nil if it failed to start
+	settings   *Settings
+	firstRun   bool // config.json was just created
+	attacks    *attacker
+	bgPicker   client.BackgroundPicker
 	lastStatus *api.StatusResponse
 	localGit   client.LocalGit
 	desk       *winapi.Desktop
@@ -112,9 +119,9 @@ func main() {
 	created := a.loadConfig()
 	switch {
 	case created:
-		_ = winapi.Open(a.cfgPath)
+		a.firstRun = true // onReady opens the settings window
 		go winapi.MessageBox(title, fmt.Sprintf(
-			"Створено конфіг:\n%s\n\nВпиши server_url і token (видає `gachi-server user add`) і збережи файл — програма підхопить зміни сама, перезапуск не потрібен.\n\nПоки що працює демо-режим у меню трею.",
+			"Створено конфіг:\n%s\n\nУ вікні налаштувань впиши адресу сервера й токен (видає `gachi-server user add`) і натисни «Зберегти» — перезапуск не потрібен.\n\nПоки що працює демо-режим у меню трею.",
 			a.cfgPath), winapi.MBInfo)
 	case a.cfgErr != nil:
 		go winapi.MessageBox(title, "Проблема з конфігом "+a.cfgPath+":\n\n"+a.cfgErr.Error()+
@@ -178,15 +185,31 @@ func (a *app) onReady() {
 	demoSndWarn := a.demoItem.AddSubMenuItem("🔊 Звук попередження", "Тільки звук")
 	demoSndFail := a.demoItem.AddSubMenuItem("🔊 Звук провалу", "Тільки звук")
 	a.demoItem.AddSeparator()
+	demoSnow := a.demoItem.AddSubMenuItem("❄️ Сніжки по екрану", "Персонаж кидає сніжки по всьому екрану")
+	demoMilk := a.demoItem.AddSubMenuItem("🥛 Молоко по екрану", "Персонаж розливає молоко по всьому екрану")
+	a.demoItem.AddSeparator()
 	demoStop := a.demoItem.AddSubMenuItem("⏹ Вимкнути демо", "Повернути шпалери і реальний стан із сервера")
 	systray.AddSeparator()
-	a.widgetItem = systray.AddMenuItemCheckbox("🪟 Віджет", "Показати / сховати віджет", false)
-	modeMenu := systray.AddMenuItem("Режим віджета", "")
+	widgetMenu := systray.AddMenuItem("🪟 Віджет", "")
+	a.widgetItem = widgetMenu.AddSubMenuItemCheckbox("Показувати віджет", "Показати / сховати віджет", false)
+	widgetMenu.AddSeparator()
+	modeMenu := widgetMenu.AddSubMenuItem("🖥 Режим", "")
 	a.modeDesk = modeMenu.AddSubMenuItemCheckbox("🖥 На робочому столі (під вікнами)", "", false)
 	a.modeOver = modeMenu.AddSubMenuItemCheckbox("🎮 Поверх усіх вікон (як Discord)", "", false)
+	themeMenu := widgetMenu.AddSubMenuItem("🎨 Тема", "Також кнопкою 🎨 на самому віджеті")
+	for _, t := range client.WidgetThemes {
+		it := themeMenu.AddSubMenuItemCheckbox(t.Title, "", false)
+		a.themeItems = append(a.themeItems, it)
+		go func(id string) {
+			for range it.ClickedCh {
+				a.setWidgetTheme(id)
+			}
+		}(t.ID)
+	}
 	a.syncWidgetMenu()
+	settingsItem := systray.AddMenuItem("⚙️ Налаштування", "Сервер, віджет, фони, покарання, активність")
 	imagesItem := systray.AddMenuItem("📂 Папка з картинками", "")
-	configItem := systray.AddMenuItem("⚙️ Відкрити конфіг", "Зміни підхоплюються автоматично після збереження")
+	configItem := systray.AddMenuItem("📝 Відкрити config.json", "Ручне редагування; зміни підхоплюються автоматично після збереження")
 	reloadItem := systray.AddMenuItem("♻️ Перечитати конфіг", "")
 	a.autoItem = systray.AddMenuItemCheckbox("Запускати з Windows", "", winapi.AutostartEnabled(appName))
 	systray.AddSeparator()
@@ -210,13 +233,25 @@ func (a *app) onReady() {
 
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
 
-	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.widgetClosed)
+	if m, err := client.StartMediaServer(); err != nil {
+		log.Println("widget backgrounds disabled:", err)
+	} else {
+		a.media = m
+	}
+	a.settings = &Settings{a: a}
+	a.attacks = &attacker{a: a}
+	if a.firstRun {
+		a.settings.Show()
+	}
+	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.nextWidgetTheme, a.settings.Show, a.widgetClosed)
 	a.widget.SetSnap(a.cfg.WidgetSnapPx)
+	a.widget.SetTheme(a.cfg.NormalizedWidgetTheme())
 	if a.cfg.ShowWidget {
 		go a.widget.Show(winapi.WidgetMode(a.cfg.NormalizedWidgetMode()))
 	}
 
 	go a.loop()
+	go a.attacks.loop()
 	go a.trackLoop()
 	go func() {
 		for {
@@ -247,12 +282,18 @@ func (a *app) onReady() {
 				go a.locked(func() { a.engine.DemoSound(client.ModeWarning) })
 			case <-demoSndFail.ClickedCh:
 				go a.locked(func() { a.engine.DemoSound(client.ModeFailed) })
+			case <-demoSnow.ClickedCh:
+				go a.attacks.launch(splash.Snow, true)
+			case <-demoMilk.ClickedCh:
+				go a.attacks.launch(splash.Milk, true)
 			case <-demoStop.ClickedCh:
 				go a.demo(client.ModeNone)
 			case <-a.snoozeItem.ClickedCh:
 				go a.snooze()
 			case <-imagesItem.ClickedCh:
 				_ = winapi.Open(filepath.Dir(a.cfg.FailedImagesDir))
+			case <-settingsItem.ClickedCh:
+				a.settings.Show()
 			case <-configItem.ClickedCh:
 				_ = winapi.Open(a.cfgPath)
 			case <-reloadItem.ClickedCh:
@@ -360,6 +401,7 @@ func (a *app) reload(force bool) {
 	a.updateGitItem()
 	if a.widget != nil { // apply widget settings edited by hand
 		a.widget.SetSnap(a.cfg.WidgetSnapPx)
+		a.widget.SetTheme(a.cfg.NormalizedWidgetTheme())
 		mode := winapi.WidgetMode(a.cfg.NormalizedWidgetMode())
 		switch open := a.widget.IsOpen(); {
 		case a.cfg.ShowWidget && !open:
@@ -799,12 +841,16 @@ func (a *app) pushWidget(errKind string) {
 	if a.widget == nil {
 		return
 	}
-	d := widgetData{Error: errKind, Demo: string(a.engine.Demo), Users: []widgetUser{}}
+	d := widgetData{Error: errKind, Demo: string(a.engine.Demo), Users: []widgetUser{}, Character: a.cfg.WidgetCharacter}
 	if a.update != nil {
 		d.Update = &widgetUpdate{Version: a.update.Latest, Required: a.update.Required}
 	}
+	state := string(a.engine.Demo) // the same state the widget's tape shows
 	if a.lastStatus != nil {
 		for _, u := range a.lastStatus.Users {
+			if u.Name == a.lastStatus.Me && state == "" {
+				state = u.State
+			}
 			wu := widgetUser{
 				Name: u.Name, Me: u.Name == a.lastStatus.Me, Streak: u.Streak, State: u.State,
 				Deadline: u.Deadline.Format(time.RFC3339), DoneToday: u.DoneToday,
@@ -824,6 +870,13 @@ func (a *app) pushWidget(errKind string) {
 			d.TodayTop = top[0].App
 		}
 	}
+	if a.attacks != nil && state != "" {
+		a.attacks.observe(state)
+	}
+	if path := a.bgPicker.Pick(a.cfg.WidgetBackground, state); path != "" && a.media != nil {
+		dim := min(max(a.cfg.WidgetBackgroundDim, 0), 1)
+		d.Background = &widgetBg{URL: a.media.URL(path), Video: client.IsBackgroundVideo(path), Dim: dim}
+	}
 	a.widget.Update(d)
 }
 
@@ -842,6 +895,14 @@ func (a *app) syncWidgetMenu() {
 	} else {
 		a.modeDesk.Check()
 		a.modeOver.Uncheck()
+	}
+	theme := a.cfg.NormalizedWidgetTheme()
+	for i, it := range a.themeItems {
+		if client.WidgetThemes[i].ID == theme {
+			it.Check()
+		} else {
+			it.Uncheck()
+		}
 	}
 }
 
@@ -867,6 +928,18 @@ func (a *app) setWidgetMode(mode string) {
 		a.locked(func() { a.pushWidget("") })
 	}
 	a.syncWidgetMenu()
+}
+
+func (a *app) setWidgetTheme(id string) {
+	a.saveConfigFields(map[string]any{"widget_theme": id})
+	a.cfg.WidgetTheme = id
+	a.widget.SetTheme(id)
+	a.syncWidgetMenu()
+}
+
+// nextWidgetTheme is the widget's 🎨 button.
+func (a *app) nextWidgetTheme() {
+	a.setWidgetTheme(client.NextWidgetTheme(a.cfg.NormalizedWidgetTheme()))
 }
 
 // widgetClosed runs when the widget window goes away (✕ or tray toggle).
@@ -915,16 +988,20 @@ func (a *app) snooze() {
 	}
 }
 
-// installAssets unpacks the bundled wallpapers and sounds into empty folders.
+// installAssets unpacks the bundled wallpapers, sounds and widget backgrounds into empty folders.
 func installAssets(cfg client.Config, dataDir string) {
-	jobs := []struct {
+	type job struct {
 		src, dst string
 		exts     map[string]bool
-	}{
+	}
+	jobs := []job{
 		{"images/warning", cfg.WarningImagesDir, client.ImageExts()},
 		{"images/failed", cfg.FailedImagesDir, client.ImageExts()},
 		{"sounds/warning", filepath.Join(dataDir, "sounds", "warning"), client.SoundExts()},
 		{"sounds/failed", filepath.Join(dataDir, "sounds", "failed"), client.SoundExts()},
+	}
+	for _, st := range client.BackgroundStates {
+		jobs = append(jobs, job{"widget/" + st, client.BackgroundDir(dataDir, st), client.BackgroundExts()})
 	}
 	for _, j := range jobs {
 		if j.dst == "" {

@@ -7,3 +7,4 @@ dist
 frontend/node_modules
 internal/webui/dist/*
 !internal/webui/dist/.gitkeep
+assets-src

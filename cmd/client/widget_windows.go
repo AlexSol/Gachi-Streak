@@ -5,19 +5,33 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
+	"image"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 
 	webview2 "github.com/jchv/go-webview2"
 
+	"github.com/AlexSol/gachi-streak/internal/splash"
 	"github.com/AlexSol/gachi-streak/internal/winapi"
 )
 
 //go:embed widget.html
 var widgetHTML string
+
+//go:embed themes.css
+var themesCSS string
+
+// pageHTML inlines the theme tokens and bakes the theme into <html>,
+// so a page never flashes the default theme.
+func pageHTML(page, theme string) string {
+	page = strings.Replace(page, "/*@themes*/", themesCSS, 1)
+	return strings.Replace(page, "<html ", "<html data-theme="+strconv.Quote(theme)+" ", 1)
+}
 
 // widgetData is what the widget page renders (window.gsUpdate).
 type widgetData struct {
@@ -27,6 +41,14 @@ type widgetData struct {
 	TodayTotal int64         `json:"today_total"`
 	TodayTop   string        `json:"today_top,omitempty"`
 	Update     *widgetUpdate `json:"update,omitempty"` // newer client release
+	Background *widgetBg     `json:"background,omitempty"`
+	Character  bool          `json:"character"` // show the chibi next to the ✅ button
+}
+
+type widgetBg struct {
+	URL   string  `json:"url"`
+	Video bool    `json:"video"`
+	Dim   float64 `json:"dim"` // 0…1, theme color over the background
 }
 
 type widgetUpdate struct {
@@ -53,22 +75,26 @@ type widgetPos struct {
 // It runs on its own OS thread with its own message loop, separate from
 // the tray.
 type Widget struct {
-	dataDir  string
-	onPing   func()
-	onWeb    func()
-	onUpdate func()
-	onClose  func()
+	dataDir    string
+	onPing     func()
+	onWeb      func()
+	onUpdate   func()
+	onTheme    func()
+	onSettings func()
+	onClose    func()
 
-	mu   sync.Mutex
-	wv   webview2.WebView
-	hwnd uintptr
-	mode winapi.WidgetMode
-	snap int    // edge snapping distance at 100% scale
-	last []byte // last JSON, replayed when the page (re)loads
+	mu    sync.Mutex
+	wv    webview2.WebView
+	hwnd  uintptr
+	mode  winapi.WidgetMode
+	snap  int    // edge snapping distance at 100% scale
+	theme string // client.WidgetThemes ID
+	last  []byte // last JSON, replayed when the page (re)loads
 }
 
-func newWidget(dataDir string, onPing, onWeb, onUpdate, onClose func()) *Widget {
-	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onUpdate: onUpdate, onClose: onClose, mode: winapi.WidgetDesktop}
+func newWidget(dataDir string, onPing, onWeb, onUpdate, onTheme, onSettings, onClose func()) *Widget {
+	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onUpdate: onUpdate, onTheme: onTheme,
+		onSettings: onSettings, onClose: onClose, mode: winapi.WidgetDesktop}
 }
 
 func (w *Widget) posFile() string { return filepath.Join(w.dataDir, "widget.json") }
@@ -146,7 +172,7 @@ func (w *Widget) run(ready chan struct{}) {
 	}
 
 	w.mu.Lock()
-	mode, snap := w.mode, w.snap
+	mode, snap, theme := w.mode, w.snap, w.theme
 	w.wv, w.hwnd = wv, hwnd
 	w.mu.Unlock()
 
@@ -165,8 +191,10 @@ func (w *Widget) run(ready chan struct{}) {
 	_ = wv.Bind("gsPing", func() { go w.onPing() })
 	_ = wv.Bind("gsOpenWeb", func() { go w.onWeb() })
 	_ = wv.Bind("gsOpenUpdate", func() { go w.onUpdate() })
+	_ = wv.Bind("gsNextTheme", func() { go w.onTheme() })
+	_ = wv.Bind("gsSettings", func() { go w.onSettings() })
 	_ = wv.Bind("gsClose", func() { wv.Destroy() })
-	wv.SetHtml(widgetHTML)
+	wv.SetHtml(pageHTML(widgetHTML, theme))
 	close(ready)
 
 	wv.Run() // returns when the window is closed
@@ -215,6 +243,17 @@ func (w *Widget) SetSnap(px int) {
 	}
 }
 
+// SetTheme switches the color theme live (id from client.WidgetThemes).
+func (w *Widget) SetTheme(id string) {
+	w.mu.Lock()
+	w.theme = id
+	wv := w.wv
+	w.mu.Unlock()
+	if wv != nil {
+		wv.Dispatch(func() { wv.Eval("window.gsTheme && window.gsTheme(" + strconv.Quote(id) + ")") })
+	}
+}
+
 // Update pushes fresh data to the page (safe from any goroutine).
 func (w *Widget) Update(d widgetData) {
 	b, err := json.Marshal(d)
@@ -227,5 +266,28 @@ func (w *Widget) Update(d widgetData) {
 	w.mu.Unlock()
 	if wv != nil {
 		wv.Dispatch(func() { wv.Eval("window.gsUpdate && window.gsUpdate(" + string(b) + ")") })
+	}
+}
+
+// HeroPoint is where the character stands, in screen pixels (the left of
+// the footer), so thrown things fly out of his hands. false = no widget.
+func (w *Widget) HeroPoint() (image.Point, bool) {
+	w.mu.Lock()
+	hwnd := w.hwnd
+	w.mu.Unlock()
+	if hwnd == 0 {
+		return image.Point{}, false
+	}
+	r, scale := winapi.WindowRect(hwnd), winapi.SystemScale()
+	return image.Pt(int(r.Left)+int(44*scale), int(r.Bottom)-int(52*scale)), true
+}
+
+// HeroAttack plays the character's throw (snow) or pour (milk) animation.
+func (w *Widget) HeroAttack(kind splash.Kind) {
+	w.mu.Lock()
+	wv := w.wv
+	w.mu.Unlock()
+	if wv != nil {
+		wv.Dispatch(func() { wv.Eval("window.gsHeroAttack && window.gsHeroAttack(" + strconv.Quote(string(kind)) + ")") })
 	}
 }
