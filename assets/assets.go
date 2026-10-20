@@ -5,7 +5,7 @@ package assets
 
 import "embed"
 
-// FS holds images/{warning,failed}/*.jpg and sounds/{warning,failed}/*.wav.
+// FS holds images/warning/* and sounds/{warning,failed}/*.{wav,mp3}.
 //
 //go:embed images sounds
 var FS embed.FS
