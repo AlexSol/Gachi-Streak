@@ -75,6 +75,7 @@ type app struct {
 	update     *client.Update // newer release, nil = up to date
 	updAt      time.Time      // last GET /client/version
 	updToasted bool           // a required update was announced this run
+	updCheck   *systray.MenuItem
 }
 
 // updateEvery limits GET /client/version: the server itself refreshes
@@ -204,6 +205,7 @@ func (a *app) onReady() {
 	infoItem.AddSeparator()
 	siteItem := infoItem.AddSubMenuItem("🌐 Відкрити сайт", "Веб-дашборд на твоєму сервері")
 	repoItem := infoItem.AddSubMenuItem("💻 Проєкт на GitHub", client.ProjectURL)
+	a.updCheck = infoItem.AddSubMenuItem(updCheckTitle, "Запитати сервер про нову версію клієнта")
 	quitItem := systray.AddMenuItem("Вихід", "Шпалери-покарання НЕ знімаються при виході 😈")
 
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
@@ -227,6 +229,8 @@ func (a *app) onReady() {
 				a.openUpdate()
 			case <-siteItem.ClickedCh:
 				a.openWeb()
+			case <-a.updCheck.ClickedCh:
+				go a.checkUpdateNow()
 			case <-repoItem.ClickedCh:
 				_ = winapi.Open(client.ProjectURL)
 			case <-a.netCopy.ClickedCh:
@@ -436,7 +440,7 @@ func (a *app) poll() {
 		}
 	}
 	a.lastStatus = &st
-	a.checkUpdate(ctx)
+	a.checkUpdate(ctx, false)
 	a.render(st)
 	a.pushWidget("")
 	if !ok {
@@ -485,30 +489,31 @@ func (a *app) checkAchievements(ctx context.Context) {
 
 // checkUpdate asks the server for the latest client release, shows it in
 // the tray and announces each new version once with a Windows
-// notification (a required update — on every start). Call with a.mu held.
-func (a *app) checkUpdate(ctx context.Context) {
-	if !client.IsRelease(version) || time.Since(a.updAt) < updateEvery {
-		return
+// notification (a required update — on every start). manual (the tray
+// item) skips the hourly limit and always notifies. Call with a.mu held.
+func (a *app) checkUpdate(ctx context.Context, manual bool) (found bool, err error) {
+	if !client.IsRelease(version) || !manual && time.Since(a.updAt) < updateEvery {
+		return false, nil
 	}
 	a.updAt = time.Now()
 	v, err := a.api.ClientVersion(ctx)
 	if err != nil {
 		log.Println("client version:", err)
-		return
+		return false, err
 	}
 	u, ok := client.CheckUpdate(version, v)
 	if !ok {
 		a.update = nil
 		a.updateItem.Hide()
-		return
+		return false, nil
 	}
 	a.update = &u
 	a.updateItem.SetTitle(client.UpdateMenuTitle(u, version))
 	a.updateItem.Show()
 
 	seen := filepath.Join(a.dataDir, "update_seen.txt")
-	if client.UpdateSeen(seen) == u.Latest && (!u.Required || a.updToasted) {
-		return
+	if !manual && client.UpdateSeen(seen) == u.Latest && (!u.Required || a.updToasted) {
+		return true, nil
 	}
 	// Mark seen first: a broken toast must not repeat every hour.
 	a.updToasted = true
@@ -523,6 +528,40 @@ func (a *app) checkUpdate(ctx context.Context) {
 			winapi.MessageBox(title, body+"\n\n"+u.URL, winapi.MBInfo) // fallback
 		}
 	}()
+	return true, nil
+}
+
+const updCheckTitle = "🔍 Перевірити оновлення"
+
+// checkUpdateNow runs a manual check from the tray and shows the result
+// in the menu item for a few seconds.
+func (a *app) checkUpdateNow() {
+	result := func() string {
+		if !client.IsRelease(version) {
+			return "ℹ️ Збірка " + version + " — оновлення не перевіряються"
+		}
+		a.updCheck.SetTitle("⏳ Перевіряю…")
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		if a.cfgErr != nil {
+			return "⚙️ Спочатку налаштуй конфіг"
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		found, err := a.checkUpdate(ctx, true)
+		switch {
+		case err != nil:
+			return "❌ Не вдалося: " + shorten(err.Error(), 50)
+		case found:
+			a.pushWidget("")
+			return "⬆️ Є нова версія — дивись перший рядок меню"
+		default:
+			return "✅ У тебе остання версія (v" + version + ")"
+		}
+	}()
+	a.updCheck.SetTitle(result)
+	time.Sleep(5 * time.Second)
+	a.updCheck.SetTitle(updCheckTitle)
 }
 
 // openUpdate opens the release page of the available update.
