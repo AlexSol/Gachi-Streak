@@ -5,14 +5,15 @@ import { Login } from "./Login";
 import { DungeonBg } from "./DungeonBg";
 import { Dashboard } from "./Dashboard";
 import { AchievementsPage, RanksPage } from "./Progress";
+import { FriendsPage } from "./Friends";
 
-type Route = "dash" | "ranks" | "achievements";
+type Route = "dash" | "friends" | "ranks" | "achievements";
 
 // Hash routing: the app is served under /app/ by the Go server, so
 // #/ranks needs no server-side fallback.
 function routeFromHash(): Route {
   const h = location.hash.replace(/^#\/?/, "");
-  return h === "ranks" || h === "achievements" ? h : "dash";
+  return h === "friends" || h === "ranks" || h === "achievements" ? h : "dash";
 }
 
 function useRoute() {
@@ -73,7 +74,7 @@ export function App() {
         </a>
         {auth.kind === "user" && (
           <nav class="nav" aria-label="Main">
-            {(["dash", "ranks", "achievements"] as const).map((r) => (
+            {(["dash", "friends", "ranks", "achievements"] as const).map((r) => (
               <a key={r} href={r === "dash" ? "#/" : `#/${r}`} aria-current={route === r ? "page" : undefined}>
                 {i18n.t.nav[r]}
               </a>
@@ -101,6 +102,15 @@ export function App() {
           <>
             <div hidden={route !== "dash"}>
               <Dashboard t={i18n.t} lang={i18n.lang} me={auth.me} onUnauthorized={toGuest} />
+            </div>
+            <div hidden={route !== "friends"}>
+              <FriendsPage
+                t={i18n.t}
+                lang={i18n.lang}
+                me={auth.me.name}
+                active={route === "friends"}
+                onUnauthorized={toGuest}
+              />
             </div>
             <div hidden={route !== "ranks"}>
               <RanksPage t={i18n.t} me={auth.me.name} onUnauthorized={toGuest} />

@@ -18,7 +18,7 @@ export default defineConfig({
     // The server rejects logins whose Origin doesn't match Host (CSRF guard),
     // so present proxied requests as coming from the API origin itself.
     proxy: Object.fromEntries(
-      ["/status", "/ping", "/auth", "/activity", "/progress"].map((p) => [
+      ["/status", "/ping", "/auth", "/activity", "/progress", "/users"].map((p) => [
         p,
         { target: api, changeOrigin: true, headers: { origin: api } },
       ]),

@@ -58,6 +58,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /presence", s.auth(http.HandlerFunc(s.handlePresence)))
 	mux.Handle("GET /activity", s.auth(http.HandlerFunc(s.handleActivity)))
 	mux.Handle("GET /progress", s.auth(http.HandlerFunc(s.handleProgress)))
+	mux.Handle("GET /users", s.auth(http.HandlerFunc(s.handleUsers)))
 	mux.Handle("POST /achievements/seen", s.auth(http.HandlerFunc(s.handleAchievementsSeen)))
 	mux.Handle("POST /achievements/{id}/open", s.auth(http.HandlerFunc(s.handleAchievementOpen)))
 

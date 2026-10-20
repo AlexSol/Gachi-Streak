@@ -88,12 +88,7 @@ func (s *Server) presenceFor(ctx context.Context, u store.User, now time.Time, u
 	case err != nil:
 		return err
 	default:
-		online := now.Sub(p.UpdatedAt) < onlineWindow
-		pr := &api.Presence{Online: online, Idle: p.Idle, UpdatedAt: p.UpdatedAt.UTC()}
-		if online && !p.Idle {
-			pr.App, pr.Since = p.App, p.Since.UTC()
-		}
-		us.Presence = pr
+		us.Presence = presenceView(&p, now)
 	}
 
 	today := streak.DayOf(now, u.Location())

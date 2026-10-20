@@ -119,15 +119,62 @@ export interface ProgressResponse {
   users: UserProgress[];
 }
 
+export type LeaderFilter = "all" | "online" | "risk";
+export type LeaderSort = "streak" | "best" | "xp" | "name" | "seen";
+
+export interface LeaderRow {
+  /** 1-based place in the current sort. */
+  pos: number;
+  name: string;
+  streak: number;
+  best: number;
+  state: State;
+  done_today: boolean;
+  deadline: string; // RFC3339
+  seconds_left: number;
+  last_active_day: string;
+  xp: number;
+  rank: number;
+  rank_name: string;
+  presence?: Presence;
+  /** Tracked seconds for the user's last 7 days, oldest first. */
+  week: number[];
+}
+
+export interface UsersQuery {
+  q?: string;
+  filter?: LeaderFilter;
+  sort?: LeaderSort;
+  page?: number;
+  limit?: number;
+}
+
+export interface UsersResponse {
+  me: string;
+  q: string;
+  filter: LeaderFilter;
+  sort: LeaderSort;
+  page: number;
+  limit: number;
+  total: number;
+  counts: { all: number; online: number; at_risk: number };
+  users: LeaderRow[];
+  /** My own row in the current sort, ignoring q and filter. */
+  me_row?: LeaderRow;
+  /** Not counted yet and the deadline is close, nearest first. */
+  at_risk: LeaderRow[];
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
 }
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function call<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(path, {
     method,
+    signal,
     credentials: "same-origin",
     headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -147,6 +194,11 @@ export const api = {
   achievementsSeen: () => call<void>("POST", "/achievements/seen"),
   openAchievement: (id: string) => call<void>("POST", `/achievements/${encodeURIComponent(id)}/open`),
   activity: (days = 7) => call<ActivityResponse>("GET", `/activity?days=${days}`),
+  users: (q: UsersQuery, signal?: AbortSignal) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== "") p.set(k, String(v));
+    return call<UsersResponse>("GET", `/users?${p}`, undefined, signal);
+  },
   ping: (note: string) =>
     call<{ counted: boolean; user: UserStatus }>("POST", "/ping", { source: "manual", note }),
 };
