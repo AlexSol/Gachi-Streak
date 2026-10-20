@@ -216,6 +216,18 @@ CREATE TABLE IF NOT EXISTS code_scans (
 	scanned_at TEXT NOT NULL,
 	PRIMARY KEY (user_id, ref)
 );
+CREATE TABLE IF NOT EXISTS friendships (
+	requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	addressee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	status       TEXT NOT NULL,
+	created_at   TEXT NOT NULL,
+	responded_at TEXT NOT NULL DEFAULT '',
+	PRIMARY KEY (requester_id, addressee_id),
+	CHECK (requester_id <> addressee_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_friendships_pair
+	ON friendships(min(requester_id, addressee_id), max(requester_id, addressee_id));
+CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id, status);
 CREATE TABLE IF NOT EXISTS code_findings (
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	ref     TEXT NOT NULL,
@@ -335,6 +347,12 @@ func scanUser(row interface{ Scan(...any) error }) (User, error) {
 func (s *Store) UserByToken(ctx context.Context, token string) (User, error) {
 	return scanUser(s.db.QueryRowContext(ctx,
 		`SELECT `+userCols+` FROM users WHERE token_hash = ?`, HashToken(token)))
+}
+
+// UserByName finds a user by exact name.
+func (s *Store) UserByName(ctx context.Context, name string) (User, error) {
+	return scanUser(s.db.QueryRowContext(ctx,
+		`SELECT `+userCols+` FROM users WHERE name = ?`, name))
 }
 
 // ListUsers returns all users ordered by id.

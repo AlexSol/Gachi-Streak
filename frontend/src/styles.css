@@ -540,7 +540,7 @@ input {
 .board { padding: 0; }
 .board.is-loading .board-table { opacity: .6; transition: opacity .2s; }
 .board-scroll { overflow-x: auto; }
-.board-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 14px; }
+.board-table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: 14px; }
 .board-table th, .board-table td { padding: 10px 12px; text-align: left; vertical-align: middle; }
 .board-table thead th {
   font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
@@ -591,3 +591,30 @@ input {
 .board-empty p { margin: 4px 0; }
 .board-empty-err { color: #ff7a7a; font-size: 20px; }
 @media (prefers-reduced-motion: reduce) { .board.is-loading .board-table { transition: none; } }
+
+/* ---------- friends: views, actions, requests ---------- */
+.friends .tabs .count-badge {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 8px; padding: 0 6px;
+  border-radius: 999px; background: var(--fail); color: #fff; font-size: 12px; font-weight: 800; line-height: 1;
+}
+.friends-tools .filters { flex: 0 1 auto; }
+.board-table .c-act { width: 1%; text-align: right; white-space: nowrap; }
+.fr-btn { white-space: nowrap; min-height: 36px; }
+.fr-btn.fr-add { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
+.fr-btn.muted { color: var(--muted); }
+
+.alone { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.alone p { margin: 2px 0; }
+.alone .muted { max-width: 560px; }
+
+.reqs { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.reqs h2 { margin: 0 0 12px; font-size: 16px; }
+.reqs h2 .muted { font-weight: 400; }
+.reqs p { margin: 0; }
+.req-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.req-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #0008; border: 1px solid var(--line); }
+.req-main { display: grid; min-width: 0; flex: 1; }
+.req-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req-main .muted { font-size: 12.5px; }
+.req-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.req-actions button { min-height: 40px; }

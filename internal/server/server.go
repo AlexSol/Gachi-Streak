@@ -27,6 +27,7 @@ type Server struct {
 	// Repositories over the Store's tables.
 	Achievements AchievementRepository
 	Code         CodeRepository
+	Friends      FriendRepository
 
 	// UI serves the single-page app under /app/ (nil = not mounted).
 	UI http.Handler
@@ -41,6 +42,7 @@ func New(st *store.Store, warn time.Duration, log *slog.Logger) *Server {
 		Store: st, Warn: warn, Log: log, Now: time.Now,
 		Achievements: st.Achievements(),
 		Code:         st.Code(),
+		Friends:      st.Friends(),
 	}
 }
 
@@ -61,6 +63,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /users", s.auth(http.HandlerFunc(s.handleUsers)))
 	mux.Handle("POST /achievements/seen", s.auth(http.HandlerFunc(s.handleAchievementsSeen)))
 	mux.Handle("POST /achievements/{id}/open", s.auth(http.HandlerFunc(s.handleAchievementOpen)))
+	s.friendRoutes(mux)
 
 	// Browser sessions: an invite token is exchanged for an HttpOnly cookie.
 	mux.HandleFunc("POST /auth/login", s.handleLogin)
