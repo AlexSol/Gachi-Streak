@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/AlexSol/gachi-streak/assets"
 )
 
 func TestWidgetBackgroundJSON(t *testing.T) {
@@ -14,6 +16,7 @@ func TestWidgetBackgroundJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"widget_background":"C:\\bg.webm"}`), &c); err != nil || c.WidgetBackground.For("failed") != `C:\bg.webm` {
 		t.Fatalf("string form: %+v %v", c.WidgetBackground, err)
 	}
+	c = DefaultConfig(t.TempDir()) // bundled per-state folders must not survive an explicit object
 	if err := json.Unmarshal([]byte(`{"widget_background":{"default":"a","failed":"f"}}`), &c); err != nil {
 		t.Fatal(err)
 	}
@@ -78,5 +81,19 @@ func TestMediaServer(t *testing.T) {
 	}
 	if s.URL("") != "" || (*MediaServer)(nil).URL(path) != "" {
 		t.Fatal("empty URL")
+	}
+}
+
+func TestBundledWidgetBackgrounds(t *testing.T) {
+	dataDir := t.TempDir()
+	def := DefaultConfig(dataDir).WidgetBackground
+	for _, st := range BackgroundStates {
+		dst := filepath.Join(dataDir, "widget", st)
+		if n, err := InstallDefaults(assets.FS, "widget/"+st, dst, BackgroundExts()); err != nil || n == 0 {
+			t.Fatalf("%s: installed %d, %v", st, n, err)
+		}
+		if def.For(st) != dst || len(ListBackgrounds(def.For(st))) == 0 {
+			t.Fatalf("%s: default config must point at the unpacked folder, got %q", st, def.For(st))
+		}
 	}
 }

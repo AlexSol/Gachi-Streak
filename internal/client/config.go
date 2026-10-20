@@ -83,7 +83,12 @@ func DefaultConfig(dataDir string) Config {
 		WidgetMode:        WidgetModeDesktop,
 		WidgetSnapPx:      20,
 		WidgetTheme:       WidgetThemeDefault,
-
+		WidgetBackground: WidgetBackground{ // bundled clips, unpacked on first start
+			Safe:    filepath.Join(dataDir, "widget", "safe"),
+			Pending: filepath.Join(dataDir, "widget", "pending"),
+			Warning: filepath.Join(dataDir, "widget", "warning"),
+			Failed:  filepath.Join(dataDir, "widget", "failed"),
+		},
 		WidgetBackgroundDim: 0.55,
 
 		AchievementNotifications: true,

@@ -33,8 +33,15 @@ func (b *WidgetBackground) UnmarshalJSON(data []byte) error {
 		*b = WidgetBackground{Default: s}
 		return nil
 	}
+	// an object replaces the defaults as a whole: {"default": "x"} must not
+	// lose to the bundled per-state folders
 	type plain WidgetBackground // no UnmarshalJSON, no recursion
-	return json.Unmarshal(data, (*plain)(b))
+	var p plain
+	if err := json.Unmarshal(data, &p); err != nil {
+		return err
+	}
+	*b = WidgetBackground(p)
+	return nil
 }
 
 // For returns the source configured for a state ("safe", "pending", "warning", "failed").
@@ -52,6 +59,18 @@ var bgTypes = map[string]string{
 	".webp": "image/webp", // static or animated
 	".webm": "video/webm",
 }
+
+// BackgroundExts are the accepted widget background file kinds.
+func BackgroundExts() map[string]bool {
+	m := map[string]bool{}
+	for ext := range bgTypes {
+		m[ext] = true
+	}
+	return m
+}
+
+// BackgroundStates are the widget states that can have their own background.
+var BackgroundStates = []string{"safe", "pending", "warning", "failed"}
 
 // IsBackgroundVideo reports whether a background file is a video.
 func IsBackgroundVideo(path string) bool {

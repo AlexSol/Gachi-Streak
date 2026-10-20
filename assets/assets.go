@@ -5,7 +5,9 @@ package assets
 
 import "embed"
 
-// FS holds images/warning/* and sounds/{warning,failed}/*.{wav,mp3}.
+// FS holds images/warning/*, sounds/{warning,failed}/*.{wav,mp3} and
+// widget/{safe,pending,warning,failed}/* (widget backgrounds, built from
+// assets-src/widget by its convert.sh).
 //
-//go:embed images sounds
+//go:embed images sounds widget
 var FS embed.FS

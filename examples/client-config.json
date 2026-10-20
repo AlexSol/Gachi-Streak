@@ -19,11 +19,11 @@
   "widget_snap_px": 20,
   "widget_theme": "gachi",
   "widget_background": {
-    "default": "C:\\Users\\YOU\\Pictures\\widget\\calm.webp",
-    "safe": "",
-    "pending": "",
-    "warning": "C:\\Users\\YOU\\Pictures\\widget\\warning",
-    "failed": "C:\\Users\\YOU\\Pictures\\widget\\failed.webm"
+    "default": "",
+    "safe": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\safe",
+    "pending": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\pending",
+    "warning": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\warning",
+    "failed": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\failed"
   },
   "widget_background_dim": 0.55,
   "achievement_notifications": true

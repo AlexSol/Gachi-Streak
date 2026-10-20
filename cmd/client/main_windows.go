@@ -965,16 +965,20 @@ func (a *app) snooze() {
 	}
 }
 
-// installAssets unpacks the bundled wallpapers and sounds into empty folders.
+// installAssets unpacks the bundled wallpapers, sounds and widget backgrounds into empty folders.
 func installAssets(cfg client.Config, dataDir string) {
-	jobs := []struct {
+	type job struct {
 		src, dst string
 		exts     map[string]bool
-	}{
+	}
+	jobs := []job{
 		{"images/warning", cfg.WarningImagesDir, client.ImageExts()},
 		{"images/failed", cfg.FailedImagesDir, client.ImageExts()},
 		{"sounds/warning", filepath.Join(dataDir, "sounds", "warning"), client.SoundExts()},
 		{"sounds/failed", filepath.Join(dataDir, "sounds", "failed"), client.SoundExts()},
+	}
+	for _, st := range client.BackgroundStates {
+		jobs = append(jobs, job{"widget/" + st, filepath.Join(dataDir, "widget", st), client.BackgroundExts()})
 	}
 	for _, j := range jobs {
 		if j.dst == "" {
