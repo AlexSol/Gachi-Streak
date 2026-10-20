@@ -51,7 +51,11 @@ func (b BuildInfo) ShortCommit() string {
 	return c
 }
 
-// String is "v0.1.0 (6d8a8df)".
+// String is "v0.1.0 (6d8a8df)", or "dev (6d8a8df)" for a dev build.
 func (b BuildInfo) String() string {
-	return "v" + b.Version + " (" + b.ShortCommit() + ")"
+	v := b.Version
+	if IsRelease(v) {
+		v = "v" + v
+	}
+	return v + " (" + b.ShortCommit() + ")"
 }

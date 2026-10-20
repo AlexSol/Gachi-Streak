@@ -54,13 +54,15 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   gachi-server serve [-addr :8080] [-db gachi.db] [-warn 5h] [-github-interval 10m]
+                     [-release-repo owner/name] [-client-min 0.2.0]
   gachi-server user add    -name NAME -tz Europe/Kyiv [-github LOGIN] [-repo owner/repo]
   gachi-server user list
   gachi-server user token  -name NAME
   gachi-server user github -name NAME -github LOGIN [-repo owner/repo]
   gachi-server achievements unlock|lock [-name NAME]   (no -name = every user)
 
-env: GACHI_DB, GACHI_ADDR, GITHUB_TOKEN (optional, raises GitHub API limits)`)
+env: GACHI_DB, GACHI_ADDR, GACHI_RELEASE_REPO, GACHI_CLIENT_MIN,
+     GITHUB_TOKEN (optional, raises GitHub API limits)`)
 }
 
 func env(key, def string) string {
@@ -77,6 +79,8 @@ func cmdServe(args []string) error {
 	warn := fs.Duration("warn", 5*time.Hour, "warning window before the deadline")
 	tick := fs.Duration("tick", time.Minute, "deadline worker interval")
 	ghEvery := fs.Duration("github-interval", 10*time.Minute, "GitHub auto-check interval (0 = off)")
+	releaseRepo := fs.String("release-repo", env("GACHI_RELEASE_REPO", "AlexSol/Gachi-Streak"), "GitHub repo with client releases (\"\" = off)")
+	clientMin := fs.String("client-min", env("GACHI_CLIENT_MIN", ""), "oldest supported client version, older ones must update")
 	debug := fs.Bool("debug", false, "verbose logging")
 	fs.Parse(args)
 
@@ -98,9 +102,13 @@ func cmdServe(args []string) error {
 	srv := server.New(st, *warn, log)
 	srv.UI = webui.Handler("/app/")
 	go srv.RunDeadlineWorker(ctx, *tick)
+	gh := &server.GitHubChecker{S: srv, Token: os.Getenv("GITHUB_TOKEN")}
 	if *ghEvery > 0 {
-		gh := &server.GitHubChecker{S: srv, Token: os.Getenv("GITHUB_TOKEN")}
 		go gh.Run(ctx, *ghEvery)
+	}
+	if *releaseRepo != "" {
+		srv.Releases = &server.ReleaseChecker{GH: gh, Repo: *releaseRepo, Min: strings.TrimPrefix(*clientMin, "v")}
+		go srv.Releases.Run(ctx, 15*time.Minute)
 	}
 
 	httpSrv := &http.Server{

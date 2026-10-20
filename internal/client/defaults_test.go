@@ -50,7 +50,7 @@ func TestBuildInfoFormat(t *testing.T) {
 	if b.String() != "v0.1.0 (6d8a8df-dirty)" {
 		t.Fatalf("got %q", b.String())
 	}
-	if (BuildInfo{Version: "dev"}).String() != "vdev (невідомо)" {
+	if (BuildInfo{Version: "dev"}).String() != "dev (невідомо)" {
 		t.Fatal("unknown commit")
 	}
 	if got := ReadBuildInfo("1.2.3"); got.Version != "1.2.3" || got.GoVersion == "" {

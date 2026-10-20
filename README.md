@@ -74,7 +74,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 # або з Linux/macOS: make client-win
 ```
 
-Версія клієнта за замовчуванням `0.1.0`. Для релізу її задають так: `make client-win VERSION=0.2.0` або `$env:VERSION="0.2.0"` перед `build.ps1`. Git-хеш Go вшиває в бінарник сам, якщо збирати з репозиторію. Версію, хеш і посилання на сайт показує пункт трею «ℹ️ Про програму».
+Локальна збірка має версію `dev` і не перевіряє оновлень. Git-хеш Go вшиває в бінарник сам, якщо збирати з репозиторію. Версію, хеш і посилання на сайт показує пункт трею «ℹ️ Про програму».
 
 1. Запусти `bin\gachi-client.exe` — він створить `%APPDATA%\GachiStreak\config.json`, відкриє його і залишиться в треї (демо вже працює).
 2. Впиши `server_url` і `token` і збережи файл — клієнт підхопить зміни сам за кілька секунд. Перезапуск не потрібен; є ще пункт меню «♻️ Перечитати конфіг».
@@ -170,6 +170,17 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 Поки демо активне, опитування сервера шпалери не чіпає. Після перезапуску клієнта демо скидається.
 
+### Релізи й оновлення
+
+1. `git tag v0.3.0 && git push origin v0.3.0`.
+2. GitHub Actions ([release.yml](.github/workflows/release.yml)) проганяє тести, збирає `gachi-client.exe` з версією з тегу й публікує GitHub Release з `checksums.txt`.
+3. Сервер раз на 15 хв читає останній реліз (`-release-repo`, за замовчуванням `AlexSol/Gachi-Streak`) і віддає його на `GET /client/version`.
+4. Клієнт раз на годину питає сервер. Якщо є новіша версія: пункт «⬆️ Доступна нова версія» у треї, кнопка `⬆ v0.3.0` у віджеті й одне Windows-сповіщення на версію. Клік відкриває сторінку релізу.
+
+Якщо змінився API і старі клієнти зламаються, задай мінімальну версію: `fly secrets set GACHI_CLIENT_MIN=0.3.0` (або `-client-min`). Старші клієнти покажуть «⛔ Онови клієнт» червоним, а сповіщення повторюватиметься при кожному запуску.
+
+Зібрати реліз локально для перевірки: `make client-win VERSION=0.3.0`.
+
 ## Веб-інтерфейс
 
 `https://<сервер>/app/` — вхід за інвайт-токеном і дашборд обох стриків з кнопкою «вчив Go». Деталі й локальна розробка — [docs/frontend.md](docs/frontend.md).
@@ -180,7 +191,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 Невідомі адреси: у браузері — тематична сторінка 404 (теж двомовна), для API-клієнтів — JSON `{"error":"not found"}`.
 
 
-Усі запити, окрім `/healthz`, з заголовком `Authorization: Bearer <token>`.
+Усі запити, окрім `/healthz` і `/client/version`, з заголовком `Authorization: Bearer <token>`.
 
 ```bash
 curl -X POST -H "Authorization: Bearer $T" -d '{"note":"channels"}' http://localhost:8080/ping
@@ -188,6 +199,8 @@ curl -H "Authorization: Bearer $T" http://localhost:8080/status
 ```
 
 `GET /status` повертає обох учасників: стрик, рекорд, стан, дедлайн, секунди до нього, останній провал.
+
+`GET /client/version` повертає останній реліз клієнта: `latest`, `min`, `url`, `download`, `sha256`.
 
 ## Структура
 

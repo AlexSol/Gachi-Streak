@@ -31,6 +31,8 @@ type Server struct {
 
 	// UI serves the single-page app under /app/ (nil = not mounted).
 	UI http.Handler
+	// Releases answers GET /client/version (nil = no release known).
+	Releases *ReleaseChecker
 
 	limOnce sync.Once
 	lim     *loginLimiter
@@ -55,6 +57,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
 	})
+	mux.HandleFunc("GET /client/version", s.handleClientVersion)
 	mux.Handle("POST /ping", s.auth(http.HandlerFunc(s.handlePing)))
 	mux.Handle("GET /status", s.auth(http.HandlerFunc(s.handleStatus)))
 	mux.Handle("POST /presence", s.auth(http.HandlerFunc(s.handlePresence)))

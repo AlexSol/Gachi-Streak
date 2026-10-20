@@ -26,6 +26,13 @@
     width: 24px; height: 24px; border-radius: 6px; font-size: 13px; line-height: 24px; padding: 0;
   }
   header button:hover { background: #ffffff14; color: var(--text); }
+  header .upd {
+    width: auto; padding: 0 8px; background: var(--accent); color: #1a0d02;
+    font: 700 11.5px/22px "Segoe UI", sans-serif; height: 22px; border-radius: 11px; white-space: nowrap;
+  }
+  header .upd:hover { background: #ffa347; color: #1a0d02; }
+  header .upd.req { background: var(--fail); color: #fff; }
+  header .upd[hidden] { display: none; }
   main { flex: 1; overflow: hidden; padding: 2px 12px 0; display: flex; flex-direction: column; gap: 8px; }
   .user {
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
@@ -60,6 +67,7 @@
 <div class="tape" id="tape"></div>
 <header id="drag">
   <div class="brand"><span>♂</span> Gachi Streak</div>
+  <button class="upd" id="upd" hidden></button>
   <button id="web" title="">🌐</button>
   <button id="close" title="">✕</button>
 </header>
@@ -76,13 +84,15 @@
     pinging: "Відмічаю…", web: "Відкрити веб-дашборд", close: "Сховати віджет", now: "у", afk: "AFK",
     offline: "клієнт офлайн", nostat: "немає клієнта", today: "Сьогодні в програмах", wait: "Підключаюсь…",
     noconn: "Немає зв'язку з сервером", config: "Налаштуй конфіг (меню трею → ⚙️)", demo: "🧪 Демо",
-    st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "г", m: "хв"
+    st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "г", m: "хв",
+    upd: "Вийшла нова версія клієнта — натисни, щоб завантажити", updReq: "Ця версія застаріла — онови клієнт"
   } : {
     you: "you", left: "until deadline", ping: "✅ I studied Go today", pinged: "✅ Counted for today",
     pinging: "Saving…", web: "Open web dashboard", close: "Hide widget", now: "in", afk: "AFK",
     offline: "client offline", nostat: "no client", today: "Today in programs", wait: "Connecting…",
     noconn: "No connection to the server", config: "Fill in the config (tray menu → ⚙️)", demo: "🧪 Demo",
-    st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "h", m: "m"
+    st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "h", m: "m",
+    upd: "A new client version is out — click to download", updReq: "This version is outdated — update the client"
   };
   document.documentElement.lang = uk ? "uk" : "en";
   const $ = id => document.getElementById(id);
@@ -122,6 +132,14 @@
     if (!data.users.length && !data.error) html = `<div class="empty">${T.wait}</div>`;
     $("users").innerHTML = html;
 
+    const upd = $("upd"), u = data.update;
+    upd.hidden = !u;
+    if (u) {
+      upd.textContent = "⬆ " + (u.version ? "v" + u.version : "");
+      upd.title = u.required ? T.updReq : T.upd;
+      upd.classList.toggle("req", !!u.required);
+    }
+
     const me = data.users.find(u => u.me);
     const btn = $("ping");
     btn.disabled = busy || !me;
@@ -139,6 +157,7 @@
   $("drag").addEventListener("mousedown", e => { if (e.button === 0 && e.target.tagName !== "BUTTON") window.gsDrag(); });
   $("close").onclick = () => window.gsClose();
   $("web").onclick = () => window.gsOpenWeb();
+  $("upd").onclick = () => window.gsOpenUpdate();
   $("ping").onclick = () => { if (busy) return; busy = true; render(); window.gsPing(); };
   document.addEventListener("contextmenu", e => e.preventDefault());
   setInterval(render, 1000);

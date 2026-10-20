@@ -21,11 +21,17 @@ var widgetHTML string
 
 // widgetData is what the widget page renders (window.gsUpdate).
 type widgetData struct {
-	Users      []widgetUser `json:"users"`
-	Error      string       `json:"error,omitempty"` // "" | "offline" | "config"
-	Demo       string       `json:"demo,omitempty"`
-	TodayTotal int64        `json:"today_total"`
-	TodayTop   string       `json:"today_top,omitempty"`
+	Users      []widgetUser  `json:"users"`
+	Error      string        `json:"error,omitempty"` // "" | "offline" | "config"
+	Demo       string        `json:"demo,omitempty"`
+	TodayTotal int64         `json:"today_total"`
+	TodayTop   string        `json:"today_top,omitempty"`
+	Update     *widgetUpdate `json:"update,omitempty"` // newer client release
+}
+
+type widgetUpdate struct {
+	Version  string `json:"version"`
+	Required bool   `json:"required"`
 }
 
 type widgetUser struct {
@@ -47,10 +53,11 @@ type widgetPos struct {
 // It runs on its own OS thread with its own message loop, separate from
 // the tray.
 type Widget struct {
-	dataDir string
-	onPing  func()
-	onWeb   func()
-	onClose func()
+	dataDir  string
+	onPing   func()
+	onWeb    func()
+	onUpdate func()
+	onClose  func()
 
 	mu   sync.Mutex
 	wv   webview2.WebView
@@ -60,8 +67,8 @@ type Widget struct {
 	last []byte // last JSON, replayed when the page (re)loads
 }
 
-func newWidget(dataDir string, onPing, onWeb, onClose func()) *Widget {
-	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onClose: onClose, mode: winapi.WidgetDesktop}
+func newWidget(dataDir string, onPing, onWeb, onUpdate, onClose func()) *Widget {
+	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onUpdate: onUpdate, onClose: onClose, mode: winapi.WidgetDesktop}
 }
 
 func (w *Widget) posFile() string { return filepath.Join(w.dataDir, "widget.json") }
@@ -157,6 +164,7 @@ func (w *Widget) run(ready chan struct{}) {
 	_ = wv.Bind("gsDrag", func() { winapi.StartDrag(hwnd) })
 	_ = wv.Bind("gsPing", func() { go w.onPing() })
 	_ = wv.Bind("gsOpenWeb", func() { go w.onWeb() })
+	_ = wv.Bind("gsOpenUpdate", func() { go w.onUpdate() })
 	_ = wv.Bind("gsClose", func() { wv.Destroy() })
 	wv.SetHtml(widgetHTML)
 	close(ready)

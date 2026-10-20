@@ -322,3 +322,12 @@ type UserProfile struct {
 	LearningLog        []ProfileLearningEntry `json:"learning_log,omitempty"`
 	SharedFriends      []string               `json:"shared_friends"`
 }
+
+// ClientVersion is the latest desktop client release (GET /client/version).
+type ClientVersion struct {
+	Latest   string `json:"latest"`             // "0.3.0"; "" = not known yet
+	Min      string `json:"min,omitempty"`      // older clients must update
+	URL      string `json:"url,omitempty"`      // release page
+	Download string `json:"download,omitempty"` // gachi-client.exe
+	SHA256   string `json:"sha256,omitempty"`   // of the download, hex
+}

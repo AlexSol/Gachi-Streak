@@ -64,6 +64,12 @@ func (c *APIClient) Presence(ctx context.Context, r api.PresenceRequest) error {
 	return c.do(ctx, http.MethodPost, "/presence", body, nil)
 }
 
+// ClientVersion calls GET /client/version.
+func (c *APIClient) ClientVersion(ctx context.Context) (api.ClientVersion, error) {
+	var out api.ClientVersion
+	return out, c.do(ctx, http.MethodGet, "/client/version", nil, &out)
+}
+
 func (c *APIClient) do(ctx context.Context, method, path string, body []byte, out any) error {
 	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, bytes.NewReader(body))
 	if err != nil {

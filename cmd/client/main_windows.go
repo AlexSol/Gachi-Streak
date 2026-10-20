@@ -26,7 +26,8 @@ import (
 
 // version is the release version; set it at build time with
 // -ldflags "-X main.version=1.2.3" (make client-win VERSION=1.2.3).
-var version = "0.1.0"
+// Dev builds do not check for updates.
+var version = "dev"
 
 const (
 	appName   = "GachiStreak"
@@ -70,7 +71,15 @@ type app struct {
 	cfgErr     error     // non-nil → not configured, server is not polled
 	cfgMod     time.Time // config.json mtime, for auto-reload
 	achAt      time.Time // last GET /progress
+	updateItem *systray.MenuItem
+	update     *client.Update // newer release, nil = up to date
+	updAt      time.Time      // last GET /client/version
+	updToasted bool           // a required update was announced this run
 }
+
+// updateEvery limits GET /client/version: the server itself refreshes
+// the release every 15 minutes.
+const updateEvery = time.Hour
 
 // achEvery limits GET /progress: unlocks are stored by the server worker
 // once a minute anyway.
@@ -120,6 +129,8 @@ func (a *app) onReady() {
 
 	a.statusItem = systray.AddMenuItem("Підключаюсь до сервера…", "")
 	a.statusItem.Disable()
+	a.updateItem = systray.AddMenuItem("", "Відкрити сторінку релізу й завантажити нову версію")
+	a.updateItem.Hide()
 	for i := 0; i < maxUsers; i++ {
 		it := systray.AddMenuItem("", "")
 		it.Disable()
@@ -197,7 +208,7 @@ func (a *app) onReady() {
 
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
 
-	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.widgetClosed)
+	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.widgetClosed)
 	a.widget.SetSnap(a.cfg.WidgetSnapPx)
 	if a.cfg.ShowWidget {
 		go a.widget.Show(winapi.WidgetMode(a.cfg.NormalizedWidgetMode()))
@@ -212,6 +223,8 @@ func (a *app) onReady() {
 				go a.ping()
 			case <-refreshItem.ClickedCh:
 				a.kick()
+			case <-a.updateItem.ClickedCh:
+				a.openUpdate()
 			case <-siteItem.ClickedCh:
 				a.openWeb()
 			case <-repoItem.ClickedCh:
@@ -423,6 +436,7 @@ func (a *app) poll() {
 		}
 	}
 	a.lastStatus = &st
+	a.checkUpdate(ctx)
 	a.render(st)
 	a.pushWidget("")
 	if !ok {
@@ -467,6 +481,58 @@ func (a *app) checkAchievements(ctx context.Context) {
 			winapi.MessageBox(title, body, winapi.MBInfo) // fallback
 		}
 	}()
+}
+
+// checkUpdate asks the server for the latest client release, shows it in
+// the tray and announces each new version once with a Windows
+// notification (a required update — on every start). Call with a.mu held.
+func (a *app) checkUpdate(ctx context.Context) {
+	if !client.IsRelease(version) || time.Since(a.updAt) < updateEvery {
+		return
+	}
+	a.updAt = time.Now()
+	v, err := a.api.ClientVersion(ctx)
+	if err != nil {
+		log.Println("client version:", err)
+		return
+	}
+	u, ok := client.CheckUpdate(version, v)
+	if !ok {
+		a.update = nil
+		a.updateItem.Hide()
+		return
+	}
+	a.update = &u
+	a.updateItem.SetTitle(client.UpdateMenuTitle(u, version))
+	a.updateItem.Show()
+
+	seen := filepath.Join(a.dataDir, "update_seen.txt")
+	if client.UpdateSeen(seen) == u.Latest && (!u.Required || a.updToasted) {
+		return
+	}
+	// Mark seen first: a broken toast must not repeat every hour.
+	a.updToasted = true
+	if err := client.SetUpdateSeen(seen, u.Latest); err != nil {
+		log.Println("update seen:", err)
+	}
+	title, body := client.UpdateMessage(u, version)
+	log.Printf("update available: %s (required %v)", u.Latest, u.Required)
+	go func() {
+		if err := winapi.Toast(title, body, u.URL); err != nil {
+			log.Println(err)
+			winapi.MessageBox(title, body+"\n\n"+u.URL, winapi.MBInfo) // fallback
+		}
+	}()
+}
+
+// openUpdate opens the release page of the available update.
+func (a *app) openUpdate() {
+	a.mu.Lock()
+	u := a.update
+	a.mu.Unlock()
+	if u != nil {
+		_ = winapi.Open(u.URL)
+	}
 }
 
 // checkLocalGit pings the server if a local repo has a commit from today.
@@ -608,7 +674,11 @@ func (a *app) render(st api.StatusResponse) {
 	} else {
 		systray.SetIcon(client.StateIcon(me.State))
 	}
-	systray.SetTooltip(client.Tooltip(me))
+	tip := client.Tooltip(me)
+	if a.update != nil {
+		tip += "\n⬆️ Є нова версія клієнта"
+	}
+	systray.SetTooltip(tip)
 	a.statusItem.SetTitle("Оновлено о " + time.Now().Format("15:04"))
 	for i, it := range a.userItems {
 		if i < len(st.Users) {
@@ -691,6 +761,9 @@ func (a *app) pushWidget(errKind string) {
 		return
 	}
 	d := widgetData{Error: errKind, Demo: string(a.engine.Demo), Users: []widgetUser{}}
+	if a.update != nil {
+		d.Update = &widgetUpdate{Version: a.update.Latest, Required: a.update.Required}
+	}
 	if a.lastStatus != nil {
 		for _, u := range a.lastStatus.Users {
 			wu := widgetUser{
