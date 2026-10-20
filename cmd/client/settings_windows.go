@@ -84,9 +84,12 @@ func (s *Settings) Show() {
 }
 
 func (s *Settings) run() {
-	// WebView2 and its message loop must stay on one OS thread.
+	// WebView2 and its message loop must stay on one OS thread. The thread is
+	// never unlocked: when the window closes, the goroutine ends and Go kills
+	// the thread. Handed back to the pool instead, it would keep WebView2's
+	// objects without pumping messages, and its input queue (shared with the
+	// browser process) would freeze the other window's mouse and buttons.
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 	defer func() {
 		s.mu.Lock()
 		s.open, s.wv, s.hwnd = false, nil, 0
@@ -95,7 +98,8 @@ func (s *Settings) run() {
 
 	scale := winapi.SystemScale()
 	wv := webview2.NewWithOptions(webview2.WebViewOptions{
-		DataPath:  filepath.Join(s.a.dataDir, "webview2"),
+		// its own browser process: nothing that happens here can stall the widget
+		DataPath:  filepath.Join(s.a.dataDir, "webview2-settings"),
 		AutoFocus: true,
 		WindowOptions: webview2.WindowOptions{
 			Title: title + " — налаштування", Width: uint(780 * scale), Height: uint(760 * scale), Center: true,

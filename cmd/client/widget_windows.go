@@ -139,9 +139,12 @@ func (w *Widget) Show(mode winapi.WidgetMode) {
 }
 
 func (w *Widget) run(ready chan struct{}) {
-	// WebView2 and its message loop must stay on one OS thread.
+	// WebView2 and its message loop must stay on one OS thread. The thread is
+	// never unlocked: when the window closes, the goroutine ends and Go kills
+	// the thread. Handed back to the pool instead, it would keep WebView2's
+	// objects without pumping messages, and its input queue (shared with the
+	// browser process) would freeze the other window's mouse and buttons.
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 
 	scale := winapi.SystemScale()
 	width, height := int32(320*scale), int32(300*scale)
