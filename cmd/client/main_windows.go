@@ -66,6 +66,8 @@ type app struct {
 	modeDesk   *systray.MenuItem
 	modeOver   *systray.MenuItem
 	themeItems []*systray.MenuItem // parallel to client.WidgetThemes
+	media      *client.MediaServer // widget backgrounds; nil if it failed to start
+	bgPicker   client.BackgroundPicker
 	lastStatus *api.StatusResponse
 	localGit   client.LocalGit
 	desk       *winapi.Desktop
@@ -223,6 +225,11 @@ func (a *app) onReady() {
 
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
 
+	if m, err := client.StartMediaServer(); err != nil {
+		log.Println("widget backgrounds disabled:", err)
+	} else {
+		a.media = m
+	}
 	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.nextWidgetTheme, a.widgetClosed)
 	a.widget.SetSnap(a.cfg.WidgetSnapPx)
 	a.widget.SetTheme(a.cfg.NormalizedWidgetTheme())
@@ -818,8 +825,12 @@ func (a *app) pushWidget(errKind string) {
 	if a.update != nil {
 		d.Update = &widgetUpdate{Version: a.update.Latest, Required: a.update.Required}
 	}
+	state := string(a.engine.Demo) // the same state the widget's tape shows
 	if a.lastStatus != nil {
 		for _, u := range a.lastStatus.Users {
+			if u.Name == a.lastStatus.Me && state == "" {
+				state = u.State
+			}
 			wu := widgetUser{
 				Name: u.Name, Me: u.Name == a.lastStatus.Me, Streak: u.Streak, State: u.State,
 				Deadline: u.Deadline.Format(time.RFC3339), DoneToday: u.DoneToday,
@@ -838,6 +849,10 @@ func (a *app) pushWidget(errKind string) {
 		if len(top) > 0 {
 			d.TodayTop = top[0].App
 		}
+	}
+	if path := a.bgPicker.Pick(a.cfg.WidgetBackground, state); path != "" && a.media != nil {
+		dim := min(max(a.cfg.WidgetBackgroundDim, 0), 1)
+		d.Background = &widgetBg{URL: a.media.URL(path), Video: client.IsBackgroundVideo(path), Dim: dim}
 	}
 	a.widget.Update(d)
 }

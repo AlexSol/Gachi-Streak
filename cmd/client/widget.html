@@ -39,6 +39,11 @@
     color: var(--text); font: 13px/1.4 var(--font);
     display: flex; flex-direction: column;
   }
+  /* custom background (widget_background): theme color on top keeps text readable */
+  #bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+  #bg img, #bg video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #bg::after { content: ""; position: absolute; inset: 0; background: var(--bg); opacity: var(--dim, .55); }
+  body.has-bg .user { background: color-mix(in srgb, var(--panel) 75%, transparent); backdrop-filter: blur(6px); }
   .tape { height: 5px; flex: none; background: repeating-linear-gradient(-45deg, var(--tape, var(--accent)) 0 9px, var(--stripe) 9px 18px); }
   header {
     display: flex; align-items: center; gap: 6px; padding: 7px 8px 5px 12px; cursor: move; flex: none;
@@ -88,6 +93,7 @@
 </style>
 </head>
 <body>
+<div id="bg"></div>
 <div class="tape" id="tape"></div>
 <header id="drag">
   <div class="brand"><span>♂</span> Gachi Streak</div>
@@ -138,8 +144,28 @@
     return `<div class="presence on"><span class="dot"></span>${T.now} <b>${esc(p.app)}</b>${since > 60 ? " · " + dur(since) : ""}</div>`;
   }
 
+  // background: Go picks the file for the current state; swap it only when the URL changes
+  let bgUrl = "", bgOk = false;
+  function renderBg(b) {
+    const url = b ? b.url : "", box = $("bg");
+    if (b) box.style.setProperty("--dim", b.dim);
+    if (url !== bgUrl) {
+      bgUrl = url; bgOk = !!url;
+      box.innerHTML = !url ? "" : b.video
+        ? `<video src="${esc(url)}" autoplay muted loop playsinline disablepictureinpicture></video>`
+        : `<img src="${esc(url)}" alt="">`;
+      if (url) box.firstChild.onerror = () => { bgOk = false; box.innerHTML = ""; document.body.classList.remove("has-bg"); };
+    }
+    document.body.classList.toggle("has-bg", bgOk);
+  }
+  document.addEventListener("visibilitychange", () => {
+    const v = document.querySelector("#bg video");
+    if (v) document.hidden ? v.pause() : v.play().catch(() => {});
+  });
+
   function render() {
     if (!data) return;
+    renderBg(data.background);
     const tape = { safe: "var(--safe)", warning: "var(--warn)", failed: "var(--fail)" }[data.demo || (data.users.find(u => u.me) || {}).state] || "var(--accent)";
     $("tape").style.setProperty("--tape", tape);
     let html = "";

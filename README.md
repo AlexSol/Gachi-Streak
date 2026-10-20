@@ -122,6 +122,30 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 Теми (меню трею → «🪟 Віджет» → «Тема», кнопка 🎨 на віджеті або `widget_theme`): `gachi` (за замовчуванням, помаранчева), `dark`, `light`, `neon`, `matrix`. Невідома назва = `gachi`.
 
+#### Фон віджета: картинка, анімація або відео
+
+Формати: `.jpg`, `.png`, `.webp` (статичний або анімований) і `.webm` (відео грає без звуку, по колу). Замість файлу можна вказати папку: тоді береться випадковий файл із неї.
+
+Фон може бути один на всі стани або свій для кожного стану: `safe`, `pending`, `warning`, `failed`. Якщо для стану нічого не вказано, береться `default`. Коли стан змінюється (зокрема в демо), фон міняється, а для папки обирається новий випадковий файл.
+
+```json
+"widget_background": {
+  "default": "C:\\Users\\you\\Pictures\\widget\\calm.webp",
+  "warning": "C:\\Users\\you\\Pictures\\widget\\warning",
+  "failed":  "C:\\Users\\you\\Pictures\\widget\\failed.webm"
+},
+"widget_background_dim": 0.55
+```
+
+Для одного фону на все вистачить рядка: `"widget_background": "C:\\...\\bg.webm"`. `widget_background_dim` задає, наскільки колір теми перекриває фон, щоб текст лишався читабельним: від `0` (фон як є) до `1` (фону не видно).
+
+Рекомендовано: до ~5 МБ, 5–15 с, ширина близько 640 px. Конвертація з GIF/MP4:
+
+```bash
+ffmpeg -i in.gif -vf "scale=640:-1,fps=24" -c:v libwebp -loop 0 -q:v 70 bg.webp
+ffmpeg -i in.mp4 -vf "scale=640:-1" -c:v libvpx-vp9 -crf 36 -b:v 0 -an bg.webm
+```
+
 Віджет показує те, що клієнт уже отримав від сервера, тому окремого входу не потрібно. Потрібен Microsoft Edge WebView2 Runtime, у Windows 10/11 він зазвичай уже встановлений. Win+D («показати робочий стіл») ховає й віджет, як і будь-яке вікно.
 
 ### Сповіщення про ачівки

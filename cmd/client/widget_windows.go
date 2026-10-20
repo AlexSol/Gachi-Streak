@@ -29,6 +29,13 @@ type widgetData struct {
 	TodayTotal int64         `json:"today_total"`
 	TodayTop   string        `json:"today_top,omitempty"`
 	Update     *widgetUpdate `json:"update,omitempty"` // newer client release
+	Background *widgetBg     `json:"background,omitempty"`
+}
+
+type widgetBg struct {
+	URL   string  `json:"url"`
+	Video bool    `json:"video"`
+	Dim   float64 `json:"dim"` // 0…1, theme color over the background
 }
 
 type widgetUpdate struct {

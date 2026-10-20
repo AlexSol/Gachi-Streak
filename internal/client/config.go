@@ -53,6 +53,11 @@ type Config struct {
 	WidgetSnapPx int `json:"widget_snap_px"`
 	// Widget color theme: one of WidgetThemes (gachi by default).
 	WidgetTheme string `json:"widget_theme"`
+	// Widget background: a .jpg/.png/.webp (animated too)/.webm file or a folder
+	// of them (random pick), per state; a new pick on every state change.
+	WidgetBackground WidgetBackground `json:"widget_background"`
+	// How much the theme color covers the background, 0 (none) … 1 (hidden).
+	WidgetBackgroundDim float64 `json:"widget_background_dim"`
 
 	// Windows notification when an achievement unlocks.
 	AchievementNotifications bool `json:"achievement_notifications"`
@@ -78,6 +83,8 @@ func DefaultConfig(dataDir string) Config {
 		WidgetMode:        WidgetModeDesktop,
 		WidgetSnapPx:      20,
 		WidgetTheme:       WidgetThemeDefault,
+
+		WidgetBackgroundDim: 0.55,
 
 		AchievementNotifications: true,
 	}

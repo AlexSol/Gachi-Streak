@@ -18,5 +18,13 @@
   "widget_mode": "desktop",
   "widget_snap_px": 20,
   "widget_theme": "gachi",
+  "widget_background": {
+    "default": "C:\\Users\\YOU\\Pictures\\widget\\calm.webp",
+    "safe": "",
+    "pending": "",
+    "warning": "C:\\Users\\YOU\\Pictures\\widget\\warning",
+    "failed": "C:\\Users\\YOU\\Pictures\\widget\\failed.webm"
+  },
+  "widget_background_dim": 0.55,
   "achievement_notifications": true
 }
