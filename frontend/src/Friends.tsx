@@ -237,7 +237,7 @@ export function FriendsPage({
                     <Avatar name={u.name} presence={u.presence} />
                     <div class="risk-main">
                       <b>
-                        {u.name}
+                        <a class="profile-link" href={`#/u/${encodeURIComponent(u.name)}`}>{u.name}</a>
                         {u.name === me && <span class="me"> · {t.you}</span>}
                       </b>
                       <span class="mono">
@@ -426,7 +426,7 @@ function Row({
           <Avatar name={u.name} presence={u.presence} />
           <div class="who-main">
             <b>
-              {u.name}
+              <a class="profile-link" href={`#/u/${encodeURIComponent(u.name)}`}>{u.name}</a>
               {isMe && <span class="me"> · {t.you}</span>}
             </b>
             <span class="who-sub">{presenceText(u, t)}</span>

@@ -524,3 +524,69 @@ func (s *Store) EventDays(ctx context.Context, userID int64, kind string) ([]str
 	}
 	return out, rows.Err()
 }
+
+// DayMarks returns counted and missed days in an inclusive range.
+func (s *Store) DayMarks(ctx context.Context, userID int64, fromDay, toDay string) (map[string]DayMark, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT day, MAX(counted), MAX(missed)
+		FROM (
+			SELECT day, 1 AS counted, 0 AS missed FROM activities
+			WHERE user_id = ? AND day >= ? AND day <= ?
+			UNION ALL
+			SELECT day, 0 AS counted, 1 AS missed FROM events
+			WHERE user_id = ? AND kind = ? AND day >= ? AND day <= ?
+		)
+		GROUP BY day`, userID, fromDay, toDay, userID, EventFailed, fromDay, toDay)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[string]DayMark)
+	for rows.Next() {
+		var day string
+		var counted, missed int
+		if err := rows.Scan(&day, &counted, &missed); err != nil {
+			return nil, err
+		}
+		out[day] = DayMark{Counted: counted != 0, Missed: missed != 0}
+	}
+	return out, rows.Err()
+}
+
+// LearningNote is a non-empty note attached to a user's learning activity.
+type LearningNote struct {
+	Day       string
+	Note      string
+	CreatedAt time.Time
+}
+
+// LearningLog returns the most recent non-empty activity notes.
+func (s *Store) LearningLog(ctx context.Context, userID int64, limit int) ([]LearningNote, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT day, note, created_at FROM activities
+		 WHERE user_id = ? AND TRIM(note) <> ''
+		 ORDER BY created_at DESC, id DESC LIMIT ?`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []LearningNote
+	for rows.Next() {
+		var item LearningNote
+		var created string
+		if err := rows.Scan(&item.Day, &item.Note, &created); err != nil {
+			return nil, err
+		}
+		item.CreatedAt = parseTS(created)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+// DayMark describes whether a local day was counted and/or missed.
+type DayMark struct {
+	Counted bool
+	Missed  bool
+}

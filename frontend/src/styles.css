@@ -464,6 +464,105 @@ input {
   .viewer.fx-quake { animation: none; }
 }
 
+/* ---------- user profile ---------- */
+.profile { display: grid; gap: 24px; }
+.profile-hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px 20px;
+  padding: 14px 0 22px; border-bottom: 1px solid var(--line);
+}
+.profile-back { grid-column: 1 / -1; width: fit-content; color: var(--muted); text-decoration: none; font-size: 14px; }
+.profile-back:hover, .profile-section-head a:hover, .profile-friends a:hover { color: var(--accent); }
+.profile-person { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.profile-avatar {
+  display: grid; place-items: center; width: 68px; height: 68px; flex: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--line)); border-radius: 18px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent);
+  font-size: 32px; font-weight: 800;
+}
+.profile-identity { min-width: 0; }
+.profile-identity h1 { overflow-wrap: anywhere; margin: 0; font-size: clamp(25px, 5vw, 36px); line-height: 1.1; }
+.profile-you { color: var(--muted); font-size: .6em; font-weight: 500; }
+.profile-rank { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+.profile-rank .rank-badge { flex: none; }
+.profile-dot { color: var(--line); }
+.profile-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.profile-actions button { min-height: 40px; }
+.profile-load-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.profile-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+.profile-stat { display: grid; align-content: start; gap: 3px; min-width: 0; padding: 2px 12px; border-left: 1px solid var(--line); }
+.profile-stat:first-child { border-left: 0; padding-left: 0; }
+.profile-stat strong { font-size: clamp(22px, 3vw, 30px); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.profile-stat-label { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.profile-stat-detail { color: var(--accent); font-size: 12px; }
+.profile-stat.is-highlight strong { color: var(--accent); }
+.profile-stat.is-danger strong { color: var(--fail); }
+.profile-section { min-width: 0; }
+.profile-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.profile-section-head h2 { margin: 0; font-size: 18px; }
+.profile-section-head .muted { font-size: 13px; }
+.profile-section-head a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; }
+.profile-heatmap-scroll, .profile-compare-scroll { overflow-x: auto; padding: 3px 2px 8px; scrollbar-color: var(--line) transparent; }
+.profile-heatmap { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-columns: 12px; grid-auto-flow: column; gap: 3px; width: max-content; }
+.heat-cell { display: block; width: 12px; height: 12px; border-radius: 3px; background: #ffffff12; }
+.heat-cell.is-empty { visibility: hidden; }
+.heat-cell.state-counted { background: #e99032; }
+.heat-cell.state-missed { background: #b83f45; }
+.heat-cell.state-both { background: linear-gradient(135deg, #e99032 0 49%, #b83f45 51%); }
+.profile-heat-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.profile-heat-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.profile-heat-legend .heat-cell { width: 11px; height: 11px; }
+.profile-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.profile-apps, .profile-achievements, .profile-friends { list-style: none; padding: 0; margin: 0; }
+.profile-apps { display: grid; gap: 11px; }
+.profile-app-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.profile-app-head .mono { color: var(--muted); white-space: nowrap; }
+.profile-app-track { height: 5px; margin-top: 5px; overflow: hidden; border-radius: 4px; background: #ffffff12; }
+.profile-app-track span { display: block; height: 100%; border-radius: inherit; }
+.profile-achievements { display: grid; }
+.profile-achievements li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid #ffffff0d; }
+.profile-ach-mark { width: 8px; height: 8px; transform: rotate(45deg); background: var(--accent); }
+.profile-ach-mark.is-shame { background: var(--fail); }
+.profile-ach-title { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.profile-ach-date { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.profile-empty { color: var(--muted); font-size: 14px; margin: 0; }
+.profile-log { list-style: none; margin: 0; padding: 0; }
+.profile-log li { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 14px; padding: 11px 0; border-top: 1px solid #ffffff0d; }
+.profile-log time { color: var(--muted); font-size: 13px; }
+.profile-log p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.profile-edit-note { margin: -14px 0 0; color: var(--muted); font-size: 12px; text-align: right; }
+.profile-compare-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.profile-compare-totals > div { display: grid; gap: 4px; }
+.profile-compare-totals span { color: var(--muted); font-size: 13px; }
+.profile-compare-totals strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.profile-compare-legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0 8px; color: var(--muted); font-size: 12px; }
+.profile-compare-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.profile-compare-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+.profile-compare-legend i.is-user { background: var(--accent-2); }
+.profile-compare-legend i.is-counted { width: 7px; height: 7px; border: 1px solid var(--text); background: transparent; }
+.profile-compare-chart { display: grid; grid-auto-flow: column; grid-auto-columns: 13px; align-items: end; gap: 5px; width: max-content; min-width: 100%; height: 120px; border-bottom: 1px solid var(--line); }
+.compare-day { display: flex; align-items: end; justify-content: center; gap: 2px; height: 100%; }
+.compare-bar { position: relative; display: block; width: 5px; min-height: 0; border-radius: 3px 3px 0 0; background: var(--accent); }
+.compare-bar.is-user { background: var(--accent-2); }
+.compare-bar.is-counted { outline: 1px solid #ffffff99; outline-offset: 1px; }
+.profile-friends { display: flex; flex-wrap: wrap; gap: 8px; }
+.profile-friends a { display: inline-block; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 13px; }
+@media (max-width: 700px) {
+  .profile-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
+  .profile-stat:nth-child(4) { border-left: 0; padding-left: 0; }
+  .profile-columns { grid-template-columns: 1fr; gap: 22px; }
+}
+@media (max-width: 560px) {
+  .profile { gap: 20px; }
+  .profile-hero { grid-template-columns: 1fr; align-items: start; }
+  .profile-avatar { width: 56px; height: 56px; font-size: 27px; }
+  .profile-actions { justify-content: flex-start; }
+  .profile-actions button { flex: 1 1 auto; }
+  .profile-stat { padding: 2px 8px; }
+  .profile-stat:nth-child(4) { border-left: 0; }
+  .profile-log li { grid-template-columns: 1fr; gap: 3px; }
+  .profile-compare-totals { grid-template-columns: 1fr; gap: 10px; }
+}
+
 /* login: animated background (DungeonBg) — the canvas sits behind the page,
    the card stays put; only the background reacts to the pointer. */
 .dungeon-bg { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
@@ -522,6 +621,8 @@ input {
 .risk-main { display: grid; min-width: 0; }
 .risk-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .risk-main .mono { font-size: 12.5px; color: #ffb36b; }
+.profile-link { color: var(--text); text-decoration: none; text-underline-offset: 3px; }
+.profile-link:hover { color: var(--accent); text-decoration: underline; }
 
 .friends-tools { display: flex; gap: 10px; flex-wrap: wrap; }
 .friends-tools .search {

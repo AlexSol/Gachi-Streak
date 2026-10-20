@@ -249,3 +249,76 @@ type FriendResponse struct {
 	Name     string `json:"name"`
 	Relation string `json:"relation"`
 }
+
+// ProfileDay is one day in the user's activity heatmap.
+type ProfileDay struct {
+	Day     string `json:"day"`
+	Counted bool   `json:"counted"`
+	Missed  bool   `json:"missed"`
+}
+
+// ProfileCompareDay contains both users' activity and tracked time for a day.
+type ProfileCompareDay struct {
+	Day         string `json:"day"`
+	MeCounted   bool   `json:"me_counted"`
+	UserCounted bool   `json:"user_counted"`
+	MeSeconds   int64  `json:"me_seconds"`
+	UserSeconds int64  `json:"user_seconds"`
+}
+
+// ProfileCompareTotals is the total counted days and tracked time in a 30-day comparison.
+type ProfileCompareTotals struct {
+	MeCounted   int   `json:"me_counted"`
+	UserCounted int   `json:"user_counted"`
+	MeSeconds   int64 `json:"me_seconds"`
+	UserSeconds int64 `json:"user_seconds"`
+}
+
+// ProfileComparison compares the requesting user with a profile over 30 days.
+type ProfileComparison struct {
+	Days   []ProfileCompareDay  `json:"days"`
+	Totals ProfileCompareTotals `json:"totals"`
+}
+
+// ProfileApp is one program in the user's top tracked programs.
+type ProfileApp struct {
+	App     string `json:"app"`
+	Seconds int64  `json:"seconds"`
+}
+
+// ProfileAchievement is a recently unlocked achievement.
+type ProfileAchievement struct {
+	ID       string `json:"id"`
+	Day      string `json:"day"`
+	XP       int    `json:"xp"`
+	Category string `json:"category"`
+	Secret   bool   `json:"secret,omitempty"`
+}
+
+// ProfileLearningEntry is one of the requesting user's private learning notes.
+type ProfileLearningEntry struct {
+	Day  string `json:"day"`
+	Note string `json:"note"`
+}
+
+// UserProfile is returned by GET /users/{name}/profile.
+type UserProfile struct {
+	Name               string                 `json:"name"`
+	Timezone           string                 `json:"timezone"`
+	CreatedDay         string                 `json:"created_day"`
+	Relation           string                 `json:"relation"`
+	Streak             int                    `json:"streak"`
+	Best               int                    `json:"best"`
+	ActiveDays         int                    `json:"active_days"`
+	XP                 int                    `json:"xp"`
+	Rank               int                    `json:"rank"`
+	RankName           string                 `json:"rank_name"`
+	Achievements       int                    `json:"achievements"`
+	Failures           int                    `json:"failures"`
+	Days               []ProfileDay           `json:"days"`
+	Comparison         *ProfileComparison     `json:"comparison,omitempty"`
+	TopApps            []ProfileApp           `json:"top_apps"`
+	LatestAchievements []ProfileAchievement   `json:"latest_achievements"`
+	LearningLog        []ProfileLearningEntry `json:"learning_log,omitempty"`
+	SharedFriends      []string               `json:"shared_friends"`
+}

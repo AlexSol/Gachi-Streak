@@ -190,6 +190,69 @@ export interface FriendResult {
   relation: Relation;
 }
 
+export interface ProfileDay {
+  day: string;
+  counted: boolean;
+  missed: boolean;
+}
+
+export interface ProfileCompareDay {
+  day: string;
+  me_counted: boolean;
+  user_counted: boolean;
+  me_seconds: number;
+  user_seconds: number;
+}
+
+export interface ProfileComparison {
+  days: ProfileCompareDay[];
+  totals: {
+    me_counted: number;
+    user_counted: number;
+    me_seconds: number;
+    user_seconds: number;
+  };
+}
+
+export interface ProfileApp {
+  app: string;
+  seconds: number;
+}
+
+export interface ProfileAchievement {
+  id: string;
+  day: string;
+  xp: number;
+  category: AchCategory;
+  secret?: boolean;
+}
+
+export interface ProfileLearningEntry {
+  day: string;
+  note: string;
+}
+
+export interface UserProfile {
+  name: string;
+  timezone: string;
+  created_day: string;
+  relation: Relation;
+  streak: number;
+  best: number;
+  active_days: number;
+  xp: number;
+  rank: number;
+  rank_name: string;
+  achievements: number;
+  failures: number;
+  days: ProfileDay[];
+  comparison?: ProfileComparison;
+  top_apps: ProfileApp[];
+  latest_achievements: ProfileAchievement[];
+  learning_log?: ProfileLearningEntry[];
+  shared_friends: string[];
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -224,6 +287,8 @@ export const api = {
     for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== "") p.set(k, String(v));
     return call<UsersResponse>("GET", `/users?${p}`, undefined, signal);
   },
+  userProfile: (name: string, signal?: AbortSignal) =>
+    call<UserProfile>("GET", `/users/${encodeURIComponent(name)}/profile`, undefined, signal),
   friendRequests: (signal?: AbortSignal) =>
     call<FriendRequestsResponse>("GET", "/friends/requests", undefined, signal),
   /** Ask someone; if they already asked me, this makes us friends. */

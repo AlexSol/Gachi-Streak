@@ -6,14 +6,29 @@ import { DungeonBg } from "./DungeonBg";
 import { Dashboard } from "./Dashboard";
 import { AchievementsPage, RanksPage } from "./Progress";
 import { FriendsPage } from "./Friends";
+import { ProfilePage } from "./Profile";
 
-type Route = "dash" | "friends" | "ranks" | "achievements";
+type Page = "dash" | "friends" | "ranks" | "achievements";
+type Route = Page | { page: "profile"; name: string };
 
 // Hash routing: the app is served under /app/ by the Go server, so
 // #/ranks needs no server-side fallback.
 function routeFromHash(): Route {
   const h = location.hash.replace(/^#\/?/, "");
-  return h === "friends" || h === "ranks" || h === "achievements" ? h : "dash";
+  if (h === "friends" || h === "ranks" || h === "achievements") return h;
+  if (h.startsWith("u/")) {
+    try {
+      const name = decodeURIComponent(h.slice(2));
+      if (name) return { page: "profile", name };
+    } catch {
+      return "dash";
+    }
+  }
+  return "dash";
+}
+
+function pageOf(route: Route): Page | "profile" {
+  return typeof route === "string" ? route : "profile";
 }
 
 function useRoute() {
@@ -35,6 +50,7 @@ export function App() {
   const i18n = useI18n();
   const [auth, setAuth] = useState<Auth>({ kind: "loading" });
   const route = useRoute();
+  const page = pageOf(route);
 
   useEffect(() => {
     api
@@ -75,7 +91,7 @@ export function App() {
         {auth.kind === "user" && (
           <nav class="nav" aria-label="Main">
             {(["dash", "friends", "ranks", "achievements"] as const).map((r) => (
-              <a key={r} href={r === "dash" ? "#/" : `#/${r}`} aria-current={route === r ? "page" : undefined}>
+              <a key={r} href={r === "dash" ? "#/" : `#/${r}`} aria-current={page === r ? "page" : undefined}>
                 {i18n.t.nav[r]}
               </a>
             ))}
@@ -124,6 +140,15 @@ export function App() {
                 onUnlocked={onUnlocked}
               />
             </div>
+            {typeof route !== "string" && (
+              <ProfilePage
+                name={route.name}
+                me={auth.me.name}
+                t={i18n.t}
+                lang={i18n.lang}
+                onUnauthorized={toGuest}
+              />
+            )}
           </>
         )}
         {auth.kind === "user" && unlocked.length > 0 && (
@@ -134,7 +159,7 @@ export function App() {
                 ? t.unlockToast(t.ach[unlocked[0].id]?.[0] ?? unlocked[0].id, unlockedXP)
                 : t.unlockMany(unlocked.length, unlockedXP)}
             </span>
-            {route !== "achievements" && (
+            {page !== "achievements" && (
               <a class="unlock-open" href="#/achievements" onClick={() => setUnlocked([])}>
                 {t.unlockOpen}
               </a>

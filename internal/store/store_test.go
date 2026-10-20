@@ -143,3 +143,38 @@ func TestPresenceAndUsage(t *testing.T) {
 		t.Fatalf("usage %+v", rows)
 	}
 }
+
+func TestProfileDayMarksAndLearningLog(t *testing.T) {
+	ctx := context.Background()
+	s := openTest(t)
+	now := time.Date(2026, 10, 19, 10, 0, 0, 0, time.UTC)
+	u, _, err := s.CreateUser(ctx, User{Name: "alex", Timezone: "UTC"}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.RecordActivity(ctx, u, SourceManual, "first note", now.Add(-24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.RecordActivity(ctx, u, SourceManual, " second note ", now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.LogEvent(ctx, u.ID, EventFailed, "2026-10-18", now); err != nil {
+		t.Fatal(err)
+	}
+
+	marks, err := s.DayMarks(ctx, u.ID, "2026-10-18", "2026-10-19")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if marks["2026-10-18"] != (DayMark{Counted: true, Missed: true}) ||
+		marks["2026-10-19"] != (DayMark{Counted: true}) {
+		t.Fatalf("day marks: %+v", marks)
+	}
+	log, err := s.LearningLog(ctx, u.ID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(log) != 1 || log[0].Day != "2026-10-19" || log[0].Note != " second note " {
+		t.Fatalf("learning log: %+v", log)
+	}
+}
