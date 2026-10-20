@@ -60,6 +60,13 @@ type Config struct {
 	WidgetBackgroundDim float64 `json:"widget_background_dim"`
 	// An animated chibi next to the ✅ button that reacts to the state.
 	WidgetCharacter bool `json:"widget_character"`
+	// The character throws snowballs / spills milk over the whole screen
+	// (gone in a few seconds, clicks go through). Skipped in fullscreen apps,
+	// presentations, while snoozed or away.
+	ScreenAttacks bool `json:"screen_attacks"`
+	// Average minutes between attacks (randomized); 0 = only when the
+	// state turns warning (snowballs) or failed (milk).
+	ScreenAttackMinutes int `json:"screen_attack_minutes"`
 
 	// Windows notification when an achievement unlocks.
 	AchievementNotifications bool `json:"achievement_notifications"`
@@ -93,6 +100,8 @@ func DefaultConfig(dataDir string) Config {
 		},
 		WidgetBackgroundDim: 0.55,
 		WidgetCharacter:     true,
+		ScreenAttacks:       true,
+		ScreenAttackMinutes: 45,
 
 		AchievementNotifications: true,
 	}

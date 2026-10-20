@@ -131,6 +131,7 @@
   <nav id="nav">
     <a data-to="s-widget">🪟 Віджет</a>
     <a data-to="s-bg">🎬 Фон віджета</a>
+    <a data-to="s-attack">❄️ Атаки на екран</a>
     <a data-to="s-server">🔌 Сервер</a>
     <a data-to="s-punish">💀 Покарання</a>
     <a data-to="s-activity">🧑‍💻 Активність і git</a>
@@ -166,6 +167,19 @@
           <div><button class="btn" id="openBgDir">📂 Відкрити папку фонів</button>
           <small>Поклади .webm / .webp / .jpg / .png у папку стану — і обирай тут</small></div></div>
       </div>
+    </section>
+
+    <section id="s-attack">
+      <h2>❄️ Атаки на екран</h2>
+      <div class="card">
+        <div class="row"><label for="screen_attacks">Сніжки й молоко по екрану<small>Персонаж кидає їх по всьому монітору; зникають за кілька секунд, кліки проходять крізь</small></label>
+          <span class="switch"><input type="checkbox" id="screen_attacks"><i></i></span></div>
+        <div class="row"><label for="screen_attack_minutes">Приблизно кожні<small>хвилин; 0 = лише коли стан стає ⚠️ (сніжки) чи 💀 (молоко)</small></label>
+          <input type="number" id="screen_attack_minutes" min="0" step="5"></div>
+        <div class="row"><label>Спробувати</label>
+          <div class="with-btn" style="flex-wrap:wrap"><button class="btn" data-attack="snow">❄️ Сніжки</button><button class="btn" data-attack="milk">🥛 Молоко</button></div></div>
+      </div>
+      <p class="hint" style="margin:8px 2px 0">Не з'являються в повноекранних іграх і відео, під час презентацій, на паузі 🙈 і коли тебе нема за компом.</p>
     </section>
 
     <section id="s-server">
@@ -234,8 +248,8 @@
     ["warning", "⚠️", "≤ 5 год до дедлайну"], ["failed", "💀", "Провал"],
   ];
   const TEXT = ["server_url", "token", "warning_images_dir", "failed_images_dir", "warning_sound", "failed_sound"];
-  const INT = ["poll_seconds", "widget_snap_px", "rotate_minutes"];
-  const BOOL = ["show_widget", "widget_character", "activity_tracking", "share_activity", "achievement_notifications"];
+  const INT = ["poll_seconds", "widget_snap_px", "rotate_minutes", "screen_attack_minutes"];
+  const BOOL = ["show_widget", "widget_character", "screen_attacks", "activity_tracking", "share_activity", "achievement_notifications"];
   const LINES = ["local_repos", "local_author_emails", "activity_ignore"];
 
   let st, saved, bg = {}, library = [];
@@ -402,6 +416,7 @@
   });
   $("openBgDir").onclick = () => window.gsOpen(st.folders.safe.replace(/[\\/][^\\/]+$/, ""));
   $("openCfg").onclick = () => window.gsOpen(st.cfg_path);
+  document.querySelectorAll("[data-attack]").forEach(b => b.onclick = () => window.gsTryAttack(b.dataset.attack));
   $("showToken").onclick = () => { const t = $("token"); t.type = t.type === "password" ? "text" : "password"; };
   $("save").onclick = save;
   $("cancel").onclick = () => {

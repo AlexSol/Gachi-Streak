@@ -15,6 +15,7 @@ import (
 	webview2 "github.com/jchv/go-webview2"
 
 	"github.com/AlexSol/gachi-streak/internal/client"
+	"github.com/AlexSol/gachi-streak/internal/splash"
 	"github.com/AlexSol/gachi-streak/internal/winapi"
 )
 
@@ -27,6 +28,7 @@ var settingsKeys = map[string]bool{
 	"server_url": true, "token": true, "poll_seconds": true,
 	"show_widget": true, "widget_mode": true, "widget_theme": true, "widget_snap_px": true,
 	"widget_character": true, "widget_background": true, "widget_background_dim": true,
+	"screen_attacks": true, "screen_attack_minutes": true,
 	"rotate_minutes": true, "warning_images_dir": true, "failed_images_dir": true,
 	"warning_sound": true, "failed_sound": true,
 	"local_repos": true, "local_author_emails": true,
@@ -121,6 +123,11 @@ func (s *Settings) run() {
 		return s.media(path)
 	})
 	_ = wv.Bind("gsOpen", func(path string) { _ = winapi.Open(path) })
+	_ = wv.Bind("gsTryAttack", func(kind string) {
+		if k := splash.Kind(kind); k.Valid() {
+			go s.a.attacks.launch(k, true)
+		}
+	})
 	_ = wv.Bind("gsClose", func() { wv.Destroy() })
 	wv.SetHtml(pageHTML(settingsHTML, s.a.cfg.NormalizedWidgetTheme()))
 	winapi.BringToFront(hwnd)

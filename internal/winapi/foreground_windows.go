@@ -61,3 +61,16 @@ func IdleDuration() time.Duration {
 	// both are 32-bit millisecond tick counts; unsigned subtraction handles wrap-around
 	return time.Duration(uint32(now)-lii.dwTime) * time.Millisecond
 }
+
+var procSHQueryUserNotificationState = windows.NewLazySystemDLL("shell32.dll").NewProc("SHQueryUserNotificationState")
+
+// UserBusy reports a fullscreen game or video, a presentation, a locked
+// screen or "quiet time" — moments when nothing should pop up on screen.
+func UserBusy() bool {
+	const acceptsNotifications = 5 // QUNS_ACCEPTS_NOTIFICATIONS
+	var state int32
+	if r, _, _ := procSHQueryUserNotificationState.Call(uintptr(unsafe.Pointer(&state))); r != 0 {
+		return false // S_OK is 0; unknown → assume the user is free
+	}
+	return state != acceptsNotifications
+}

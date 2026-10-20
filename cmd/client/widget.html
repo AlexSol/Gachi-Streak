@@ -169,6 +169,28 @@
   @keyframes h-cheerL { 10%, 90% { transform: rotate(160deg); } }
   @keyframes h-cheerR { 10%, 90% { transform: rotate(-160deg); } }
 
+  /* screen attacks (Go calls gsHeroAttack, then splash pieces fly out of his hands) */
+  #hero .prop { opacity: 0; }
+  #hero .snowball { fill: #f2f7fc; stroke: #6f8fb0; stroke-width: 1; }
+  #hero .carton .box { fill: #fff; stroke: #3a2418; stroke-width: 1; }
+  #hero .carton .label { fill: #4c8dff; }
+  #hero .carton .milk { fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; opacity: 0; }
+  .act-throw #h-up { animation: h-lean 1.3s ease-in-out; transform-origin: 50px 100px; }
+  .act-throw #armR { animation: h-throwA 1.3s ease-in-out; }
+  .act-throw #whip { opacity: 0; }
+  .act-throw .snowball { animation: h-hold 1.3s linear; }
+  @keyframes h-lean { 40% { transform: rotate(-5deg); } 58% { transform: rotate(5deg); } }
+  @keyframes h-throwA { 40% { transform: rotate(-170deg); } 55% { transform: rotate(-60deg); } 75% { transform: rotate(-20deg); } }
+  @keyframes h-hold { 0%, 50% { opacity: 1; } 52%, 100% { opacity: 0; } }
+  .act-spill #armL { animation: h-spillA 1.7s ease-in-out; }
+  .act-spill #foreL { animation: h-spillF 1.7s ease-in-out; }
+  .act-spill .carton { animation: h-show 1.7s linear; }
+  .act-spill .carton .milk { animation: h-pour 1.7s linear; }
+  @keyframes h-spillA { 20%, 85% { transform: rotate(115deg); } }
+  @keyframes h-spillF { 20%, 85% { transform: rotate(-25deg); } 45% { transform: rotate(-55deg); } }
+  @keyframes h-show { 0%, 92% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes h-pour { 0%, 30% { opacity: 0; } 36%, 80% { opacity: 1; } 86%, 100% { opacity: 0; } }
+
   @media (prefers-reduced-motion: reduce) { #hero * { animation: none !important; } }
 </style>
 </head>
@@ -208,6 +230,12 @@
           <g id="foreL">
             <rect class="skin" x="25" y="73" width="10" height="15" rx="5"/>
             <rect class="band" x="24.5" y="81" width="11" height="4" rx="1.5"/>
+            <g class="prop carton">
+              <path class="milk" d="M26 96Q24 104 27 112"/>
+              <rect class="box" x="23" y="84" width="14" height="14" rx="1"/>
+              <path class="box" d="M23 84L26 79H34L37 84Z"/>
+              <rect class="label" x="23" y="89" width="14" height="4"/>
+            </g>
             <circle class="skin" cx="30" cy="89" r="5"/>
           </g>
         </g>
@@ -222,6 +250,7 @@
               <path class="crack" d="M96 96l1.5-5 1 4 4-2-3 4 4 2-5 0-1 4-1-4-4 1 3-3-3-3z"/>
             </g>
             <circle class="skin" cx="70" cy="89" r="5"/>
+            <circle class="prop snowball" cx="71" cy="85" r="5.5"/>
           </g>
         </g>
         <g id="head">
@@ -378,11 +407,14 @@
   // ── character: the state sets the mood, random one-shot actions keep it alive ──
   const hero = $("hero");
   const ACTS = { safe: ["flex", "wave", "look"], pending: ["yawn", "look"], warning: ["whip", "look", "whip"], failed: ["whip", "stomp"] };
-  const ACT_MS = { flex: 1800, wave: 1700, look: 1600, yawn: 2200, whip: 1200, stomp: 1300, celebrate: 2400 };
+  const ACT_MS = { flex: 1800, wave: 1700, look: 1600, yawn: 2200, whip: 1200, stomp: 1300, celebrate: 2400, throw: 1300, spill: 1700 };
   const FACE = { safe: "normal", pending: "sleepy", warning: "worried", failed: "angry" };
-  const ACT_FACE = { flex: "happy", wave: "happy", celebrate: "happy", yawn: "yawn", stomp: "angry" };
+  const ACT_FACE = { flex: "happy", wave: "happy", celebrate: "happy", yawn: "yawn", stomp: "angry", spill: "happy" };
   let heroState = "", heroAct = "", heroActT = 0, heroNext = 0, wasDone = null;
-  const heroFace = () => { hero.dataset.face = ACT_FACE[heroAct] || FACE[heroState] || "normal"; };
+  const heroFace = () => {
+    const throwFace = heroAct === "throw" && (heroState === "failed" ? "angry" : "happy");
+    hero.dataset.face = throwFace || ACT_FACE[heroAct] || FACE[heroState] || "normal";
+  };
   const heroRandom = () => { const a = ACTS[heroState] || ACTS.safe; heroDo(a[Math.floor(Math.random() * a.length)]); };
   function heroDo(act) {
     clearTimeout(heroActT);
@@ -407,6 +439,8 @@
     }
   }
   hero.onclick = heroRandom;
+  // called from Go right before snowballs / milk fly out over the screen
+  window.gsHeroAttack = kind => heroDo(kind === "milk" ? "spill" : "throw");
 
   // called from Go when the theme changes (the initial one is baked into <html>)
   window.gsTheme = t => { document.documentElement.dataset.theme = t; };

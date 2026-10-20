@@ -5,6 +5,7 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
+	"image"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 	webview2 "github.com/jchv/go-webview2"
 
+	"github.com/AlexSol/gachi-streak/internal/splash"
 	"github.com/AlexSol/gachi-streak/internal/winapi"
 )
 
@@ -264,5 +266,28 @@ func (w *Widget) Update(d widgetData) {
 	w.mu.Unlock()
 	if wv != nil {
 		wv.Dispatch(func() { wv.Eval("window.gsUpdate && window.gsUpdate(" + string(b) + ")") })
+	}
+}
+
+// HeroPoint is where the character stands, in screen pixels (the left of
+// the footer), so thrown things fly out of his hands. false = no widget.
+func (w *Widget) HeroPoint() (image.Point, bool) {
+	w.mu.Lock()
+	hwnd := w.hwnd
+	w.mu.Unlock()
+	if hwnd == 0 {
+		return image.Point{}, false
+	}
+	r, scale := winapi.WindowRect(hwnd), winapi.SystemScale()
+	return image.Pt(int(r.Left)+int(44*scale), int(r.Bottom)-int(52*scale)), true
+}
+
+// HeroAttack plays the character's throw (snow) or pour (milk) animation.
+func (w *Widget) HeroAttack(kind splash.Kind) {
+	w.mu.Lock()
+	wv := w.wv
+	w.mu.Unlock()
+	if wv != nil {
+		wv.Dispatch(func() { wv.Eval("window.gsHeroAttack && window.gsHeroAttack(" + strconv.Quote(string(kind)) + ")") })
 	}
 }

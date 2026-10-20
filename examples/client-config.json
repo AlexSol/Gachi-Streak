@@ -27,5 +27,7 @@
   },
   "widget_background_dim": 0.55,
   "widget_character": true,
+  "screen_attacks": true,
+  "screen_attack_minutes": 45,
   "achievement_notifications": true
 }

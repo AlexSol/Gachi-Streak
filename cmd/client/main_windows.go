@@ -21,6 +21,7 @@ import (
 	"github.com/AlexSol/gachi-streak/assets"
 	"github.com/AlexSol/gachi-streak/internal/api"
 	"github.com/AlexSol/gachi-streak/internal/client"
+	"github.com/AlexSol/gachi-streak/internal/splash"
 	"github.com/AlexSol/gachi-streak/internal/winapi"
 )
 
@@ -69,6 +70,7 @@ type app struct {
 	media      *client.MediaServer // widget backgrounds; nil if it failed to start
 	settings   *Settings
 	firstRun   bool // config.json was just created
+	attacks    *attacker
 	bgPicker   client.BackgroundPicker
 	lastStatus *api.StatusResponse
 	localGit   client.LocalGit
@@ -183,6 +185,9 @@ func (a *app) onReady() {
 	demoSndWarn := a.demoItem.AddSubMenuItem("🔊 Звук попередження", "Тільки звук")
 	demoSndFail := a.demoItem.AddSubMenuItem("🔊 Звук провалу", "Тільки звук")
 	a.demoItem.AddSeparator()
+	demoSnow := a.demoItem.AddSubMenuItem("❄️ Сніжки по екрану", "Персонаж кидає сніжки по всьому екрану")
+	demoMilk := a.demoItem.AddSubMenuItem("🥛 Молоко по екрану", "Персонаж розливає молоко по всьому екрану")
+	a.demoItem.AddSeparator()
 	demoStop := a.demoItem.AddSubMenuItem("⏹ Вимкнути демо", "Повернути шпалери і реальний стан із сервера")
 	systray.AddSeparator()
 	widgetMenu := systray.AddMenuItem("🪟 Віджет", "")
@@ -234,6 +239,7 @@ func (a *app) onReady() {
 		a.media = m
 	}
 	a.settings = &Settings{a: a}
+	a.attacks = &attacker{a: a}
 	if a.firstRun {
 		a.settings.Show()
 	}
@@ -245,6 +251,7 @@ func (a *app) onReady() {
 	}
 
 	go a.loop()
+	go a.attacks.loop()
 	go a.trackLoop()
 	go func() {
 		for {
@@ -275,6 +282,10 @@ func (a *app) onReady() {
 				go a.locked(func() { a.engine.DemoSound(client.ModeWarning) })
 			case <-demoSndFail.ClickedCh:
 				go a.locked(func() { a.engine.DemoSound(client.ModeFailed) })
+			case <-demoSnow.ClickedCh:
+				go a.attacks.launch(splash.Snow, true)
+			case <-demoMilk.ClickedCh:
+				go a.attacks.launch(splash.Milk, true)
 			case <-demoStop.ClickedCh:
 				go a.demo(client.ModeNone)
 			case <-a.snoozeItem.ClickedCh:
@@ -858,6 +869,9 @@ func (a *app) pushWidget(errKind string) {
 		if len(top) > 0 {
 			d.TodayTop = top[0].App
 		}
+	}
+	if a.attacks != nil && state != "" {
+		a.attacks.observe(state)
 	}
 	if path := a.bgPicker.Pick(a.cfg.WidgetBackground, state); path != "" && a.media != nil {
 		dim := min(max(a.cfg.WidgetBackgroundDim, 0), 1)
