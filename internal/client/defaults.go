@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var soundExts = map[string]bool{".wav": true}
+var soundExts = map[string]bool{".wav": true, ".mp3": true}
 
 // InstallDefaults copies files from src (a directory inside fsys) into dst,
 // but only if dst has no files of the accepted kind yet — user's own
@@ -61,7 +61,7 @@ func hasFiles(dir string, exts map[string]bool) bool {
 }
 
 // ResolveSound turns a sound spec into something PlaySound understands:
-// a folder → a random .wav from it; a file or a system alias → as is.
+// a folder → a random .wav/.mp3 from it; a file or a system alias → as is.
 func ResolveSound(spec string, rnd *rand.Rand) string {
 	spec = strings.TrimSpace(spec)
 	st, err := os.Stat(spec)

@@ -16,6 +16,7 @@ import (
 var (
 	winmm         = windows.NewLazySystemDLL("winmm.dll")
 	procPlaySound = winmm.NewProc("PlaySoundW")
+	procMCISend   = winmm.NewProc("mciSendStringW")
 )
 
 const (
@@ -25,11 +26,15 @@ const (
 	sndFilename  = 0x00020000
 )
 
-// PlaySound plays a .wav file or a system alias ("SystemHand",
+// PlaySound plays a .wav/.mp3 file or a system alias ("SystemHand",
 // "SystemExclamation", ...) asynchronously. Empty spec = silence.
 func PlaySound(spec string) {
 	spec = strings.TrimSpace(spec)
 	if spec == "" {
+		return
+	}
+	if strings.HasSuffix(strings.ToLower(spec), ".mp3") {
+		playMP3(spec)
 		return
 	}
 	flags := uintptr(sndAsync | sndNoDefault | sndAlias)
@@ -41,6 +46,23 @@ func PlaySound(spec string) {
 		return
 	}
 	procPlaySound.Call(uintptr(unsafe.Pointer(p)), 0, flags)
+}
+
+// playMP3 uses MCI because PlaySoundW only understands wav.
+func playMP3(path string) {
+	mci("close gachisnd")
+	if mci(`open "`+path+`" type mpegvideo alias gachisnd`) == 0 {
+		mci("play gachisnd")
+	}
+}
+
+func mci(cmd string) uintptr {
+	p, err := windows.UTF16PtrFromString(cmd)
+	if err != nil {
+		return 1
+	}
+	r, _, _ := procMCISend.Call(uintptr(unsafe.Pointer(p)), 0, 0, 0)
+	return r
 }
 
 // MessageBox icons.

@@ -19,7 +19,7 @@ type Desktop interface {
 	RestoreWallpaper() error
 	// SetWallpaper sets an image file as wallpaper (stretched to fill).
 	SetWallpaper(path string) error
-	// PlaySound plays a .wav path or a system sound alias, asynchronously.
+	// PlaySound plays a .wav/.mp3 path or a system sound alias, asynchronously.
 	PlaySound(spec string)
 }
 

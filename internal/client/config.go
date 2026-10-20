@@ -26,7 +26,7 @@ type Config struct {
 	// Re-pick a random image every N minutes while punished (0 = never).
 	RotateMinutes int `json:"rotate_minutes"`
 
-	// A folder with .wav files (a random one is played), a path to a .wav
+	// A folder with .wav/.mp3 files (a random one is played), a path to a .wav/.mp3
 	// file, or a Windows sound alias like "SystemHand", "SystemExclamation".
 	// Empty = silence.
 	WarningSound string `json:"warning_sound"`
