@@ -3,35 +3,7 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root {
-    --bg: #110d0e; --panel: #181214; --text: #f1ece9; --muted: #a99c97; --line: #33252a;
-    --accent: #ff8c1a; --safe: #2ecc71; --warn: #ff8c1a; --fail: #ff3b3b; --pending: #9a8f8b;
-    --glow: #3a1d10; --stripe: #111; --hover: #ffffff14; --on-accent: #1a0d02; --dot: #5a4f4c; --idle: #f1c40f;
-    --font: "Segoe UI", system-ui, sans-serif;
-    --mono: "Cascadia Code", Consolas, ui-monospace, monospace;
-  }
-  /* themes: ids must match client.WidgetThemes */
-  [data-theme="dark"] {
-    --bg: #0f1115; --panel: #171a21; --text: #e8eaed; --muted: #9aa0a6; --line: #2a2f3a;
-    --accent: #4c8dff; --safe: #3ddc84; --warn: #ffb020; --fail: #ff5252; --pending: #8a9099;
-    --glow: #1a2740; --stripe: #0b0d12; --on-accent: #fff; --dot: #4a4f58;
-  }
-  [data-theme="light"] {
-    --bg: #f6f3f1; --panel: #fff; --text: #1d1a19; --muted: #6f6662; --line: #e3dbd7;
-    --accent: #e8740c; --safe: #1e9e57; --warn: #e8740c; --fail: #d92c2c; --pending: #8a817d;
-    --glow: #ffdcbd; --stripe: #2a2422; --hover: #0000000f; --on-accent: #fff; --dot: #c9c0bc; --idle: #d4a500;
-  }
-  [data-theme="neon"] {
-    --bg: #0d0716; --panel: #160d24; --text: #f5eaff; --muted: #a493b8; --line: #2f1d47;
-    --accent: #ff3ec8; --safe: #3dffb0; --warn: #ffb03d; --fail: #ff4d6d; --pending: #9a88b0;
-    --glow: #4a1060; --stripe: #0a0510; --on-accent: #1a0018; --dot: #4b3a60; --idle: #ffe66d;
-  }
-  [data-theme="matrix"] {
-    --bg: #050a06; --panel: #0a120c; --text: #c8ffd4; --muted: #5f9a6b; --line: #163020;
-    --accent: #39ff6a; --safe: #39ff6a; --warn: #ffd23f; --fail: #ff4b3e; --pending: #5f9a6b;
-    --glow: #0d2a14; --stripe: #020502; --on-accent: #021006; --dot: #24402c; --idle: #ffd23f;
-    --font: var(--mono);
-  }
+  /*@themes*/
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
   body {
@@ -90,6 +62,114 @@
   .note { color: var(--muted); font-size: 11.5px; text-align: center; min-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .banner { color: var(--fail); font-size: 12px; text-align: center; padding: 4px 0; }
   .empty { color: var(--muted); text-align: center; padding: 20px 0; }
+
+  /* ── character (widget_character): SVG parts animated by CSS, actions picked by JS ── */
+  footer.hero-on { grid-template-columns: 64px 1fr; column-gap: 8px; }
+  footer.hero-on .ping, footer.hero-on .note { grid-column: 2; }
+  #hero { display: none; grid-row: 1 / span 2; width: 64px; height: 77px; margin-top: -20px; align-self: end; overflow: visible; cursor: pointer; }
+  footer.hero-on #hero { display: block; }
+  #hero * { transform-box: view-box; }
+  #hero .skin { fill: #f6cfae; stroke: #3a2418; stroke-width: 1.3; }
+  #hero .shade { fill: #e6b48f; }
+  #hero .hair { fill: #4a2c1c; stroke: #24140b; stroke-width: 1.2; stroke-linejoin: round; }
+  #hero .tank { fill: #1f1b1d; stroke: #0c0a0b; stroke-width: 1.2; }
+  #hero .pants { fill: #2d2f3a; stroke: #121218; stroke-width: 1.1; }
+  #hero .boot { fill: #17141a; }
+  #hero .belt { fill: #3b2a20; }
+  #hero .band, #hero .buckle { fill: var(--accent); stroke: #0006; stroke-width: .8; }
+  #hero .line { fill: none; stroke: #0b0809; stroke-width: 1; stroke-linecap: round; opacity: .7; }
+  #hero .iris { fill: #2a1712; }
+  #hero .shine { fill: #fff; }
+  #hero .brow { fill: none; stroke: #3a2213; stroke-width: 2.3; stroke-linecap: round; }
+  #hero .lid { fill: none; stroke: #2a1712; stroke-width: 2; stroke-linecap: round; }
+  #hero .mouth { fill: none; stroke: #6d2a1e; stroke-width: 1.6; stroke-linecap: round; }
+  #hero .mouth-fill { fill: #7a2a20; stroke: #3a2418; stroke-width: 1; }
+  #hero .teeth { fill: #fff; stroke: #3a2418; stroke-width: 1; }
+  #hero .blush { fill: #ff8a9a; opacity: .45; }
+  #hero .handle { stroke: #3a2418; stroke-width: 3.2; stroke-linecap: round; }
+  #hero .lash { fill: none; stroke: #6b4429; stroke-width: 1.8; stroke-linecap: round; }
+  #hero .crack { fill: #ffd23f; opacity: 0; }
+  #hero .shadow { fill: #000; opacity: .28; }
+  #hero .fx { opacity: 0; }
+  #hero .sweat { fill: #9ad8ff; stroke: #2f6d92; stroke-width: .8; }
+  #hero .anger { fill: none; stroke: #ff3b3b; stroke-width: 2; stroke-linecap: round; }
+  #hero .zzz { font: 800 9px var(--font); fill: var(--muted); }
+  #hero .spark { fill: #ffe066; transform-box: fill-box; transform-origin: center; }
+  #hero .anger { transform-origin: 68px 15px; }
+  #hero .f { display: none; }
+  #hero[data-face=normal] .f-normal, #hero[data-face=happy] .f-happy, #hero[data-face=sleepy] .f-sleepy,
+  #hero[data-face=yawn] .f-yawn, #hero[data-face=worried] .f-worried, #hero[data-face=angry] .f-angry { display: inline; }
+
+  #h-up { transform-origin: 50px 92px; animation: h-breathe 3.2s ease-in-out infinite; }
+  #head { transform-origin: 50px 55px; animation: h-nod 5s ease-in-out infinite; }
+  #hero .eyes { transform-box: fill-box; transform-origin: center; animation: h-blink 4.6s infinite; }
+  #tails { transform-origin: 72px 29px; animation: h-flutter 1.3s ease-in-out infinite alternate; }
+  #armL { transform-origin: 30px 63px; animation: h-swayL 3.2s ease-in-out infinite; }
+  #armR { transform-origin: 70px 63px; animation: h-swayR 3.2s ease-in-out infinite; }
+  #foreL { transform-origin: 30px 76px; } #foreR { transform-origin: 70px 76px; }
+  #whip { transform-origin: 72px 96px; }
+  @keyframes h-breathe { 50% { transform: translateY(.8px) scaleY(.99); } }
+  @keyframes h-nod { 50% { transform: rotate(-2deg); } }
+  @keyframes h-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
+  @keyframes h-flutter { to { transform: rotate(12deg); } }
+  @keyframes h-swayL { 50% { transform: rotate(3deg); } }
+  @keyframes h-swayR { 50% { transform: rotate(-3deg); } }
+
+  /* states */
+  .st-pending #head { animation: h-doze 4s ease-in-out infinite; }
+  .st-pending .zzz { animation: h-float 3s ease-in infinite; }
+  .st-pending .zzz.z2 { animation-delay: 1.5s; }
+  .st-warning #h-up { animation-duration: 1.1s; }
+  .st-warning .sweat { animation: h-drip 1.8s ease-in infinite; }
+  .st-failed #h-all { animation: h-rage .28s linear infinite; }
+  .st-failed .anger { animation: h-pulse .9s ease-in-out infinite; }
+  .st-failed .blush { fill: #ff4d4d; opacity: .7; }
+  @keyframes h-doze { 50% { transform: rotate(7deg) translateY(1px); } }
+  @keyframes h-float { 0% { opacity: 0; transform: translate(0, 4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(5px, -8px); } }
+  @keyframes h-drip { 0% { opacity: 0; transform: translateY(-2px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(9px); } }
+  @keyframes h-rage { 25% { transform: translateX(-.7px); } 75% { transform: translateX(.7px); } }
+  @keyframes h-pulse { 0%, 100% { opacity: .9; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+
+  /* actions (one-shot classes from JS) */
+  .act-flex #armL { animation: h-flexA 1.8s ease-in-out; } .act-flex #foreL { animation: h-flexF 1.8s ease-in-out; }
+  .act-flex #armR { animation: h-flexAR 1.8s ease-in-out; } .act-flex #foreR { animation: h-flexFR 1.8s ease-in-out; }
+  .act-flex .spark, .act-celebrate .spark { animation: h-twinkle .6s ease-in-out 3; }
+  @keyframes h-flexA { 20%, 80% { transform: rotate(95deg); } }
+  @keyframes h-flexF { 20%, 80% { transform: rotate(100deg); } 50% { transform: rotate(112deg); } }
+  @keyframes h-flexAR { 20%, 80% { transform: rotate(-95deg); } }
+  @keyframes h-flexFR { 20%, 80% { transform: rotate(-100deg); } 50% { transform: rotate(-112deg); } }
+  @keyframes h-twinkle { 50% { opacity: 1; transform: scale(1.2); } }
+
+  .act-wave #armR { animation: h-waveA 1.7s ease-in-out; } .act-wave #foreR { animation: h-waveF 1.7s ease-in-out; }
+  @keyframes h-waveA { 15%, 85% { transform: rotate(-150deg); } }
+  @keyframes h-waveF { 25%, 55% { transform: rotate(-25deg); } 40%, 70% { transform: rotate(20deg); } }
+
+  .act-whip #armR { animation: h-whipA 1.2s ease-in-out; } .act-whip #whip { animation: h-whipW 1.2s ease-in-out; }
+  .act-whip .crack { animation: h-crack 1.2s linear; transform-origin: 96px 96px; }
+  @keyframes h-whipA { 35% { transform: rotate(-150deg); } 55% { transform: rotate(-25deg); } }
+  @keyframes h-whipW { 35% { transform: rotate(-60deg); } 55% { transform: rotate(28deg); } 70% { transform: rotate(-8deg); } }
+  @keyframes h-crack { 0%, 52% { opacity: 0; transform: scale(.4); } 58% { opacity: 1; transform: scale(1.3); } 75% { opacity: 0; transform: scale(1.6); } }
+
+  .act-look #head { animation: h-look 1.6s ease-in-out; }
+  @keyframes h-look { 20%, 80% { transform: rotate(-9deg) translate(-1px, -1px); } }
+
+  .act-yawn #head { animation: h-yawnH 2.2s ease-in-out; } .act-yawn #armL { animation: h-yawnA 2.2s ease-in-out; }
+  .act-yawn #foreL { animation: h-yawnF 2.2s ease-in-out; }
+  @keyframes h-yawnH { 20%, 75% { transform: rotate(-6deg) translateY(-1px); } }
+  @keyframes h-yawnA { 20%, 75% { transform: rotate(-150deg); } }
+  @keyframes h-yawnF { 20%, 75% { transform: rotate(-35deg); } }
+
+  .act-stomp #h-all { animation: h-stomp 1.3s ease-out; }
+  .act-stomp .anger { animation: h-pulse .4s ease-in-out 3; }
+  @keyframes h-stomp { 15% { transform: translateY(-6px); } 30% { transform: translateY(0); } 35%, 45%, 55% { transform: translateX(-1.2px); } 40%, 50% { transform: translateX(1.2px); } }
+
+  .act-celebrate #h-all { animation: h-jump 1.2s ease-in-out 2; }
+  .act-celebrate #armL { animation: h-cheerL 2.4s ease-in-out; } .act-celebrate #armR { animation: h-cheerR 2.4s ease-in-out; }
+  @keyframes h-jump { 30% { transform: translateY(-8px); } 55% { transform: translateY(0); } }
+  @keyframes h-cheerL { 10%, 90% { transform: rotate(160deg); } }
+  @keyframes h-cheerR { 10%, 90% { transform: rotate(-160deg); } }
+
+  @media (prefers-reduced-motion: reduce) { #hero * { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -99,11 +179,101 @@
   <div class="brand"><span>♂</span> Gachi Streak</div>
   <button class="upd" id="upd" hidden></button>
   <button id="theme" title="">🎨</button>
+  <button id="settings" title="">⚙</button>
   <button id="web" title="">🌐</button>
   <button id="close" title="">✕</button>
 </header>
 <main id="users"><div class="empty" id="empty">…</div></main>
-<footer>
+<footer id="foot">
+  <svg id="hero" viewBox="0 0 100 120" aria-hidden="true" data-face="normal">
+    <ellipse class="shadow" cx="50" cy="114" rx="22" ry="3.5"/>
+    <path class="spark fx" d="M12 42l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/>
+    <path class="spark fx" d="M89 46l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/>
+    <path class="spark fx" d="M18 14l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/>
+    <path class="spark fx" d="M84 10l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/>
+    <g id="h-all">
+      <rect class="pants" x="38" y="88" width="10" height="20" rx="3"/>
+      <rect class="pants" x="52" y="88" width="10" height="20" rx="3"/>
+      <rect class="boot" x="35.5" y="104" width="13.5" height="7" rx="3.5"/>
+      <rect class="boot" x="51" y="104" width="13.5" height="7" rx="3.5"/>
+      <g id="h-up">
+        <rect class="skin shade" x="44" y="50" width="12" height="10" rx="3"/>
+        <path class="skin" d="M31 62Q50 55 69 62L67 91Q50 95 33 91Z"/>
+        <path class="tank" d="M38 60Q50 69 62 60L66 91Q50 95 34 91Z"/>
+        <path class="line" d="M42 73Q46 76 50 73Q54 76 58 73"/>
+        <rect class="belt" x="33" y="87" width="34" height="5.5" rx="2"/>
+        <rect class="buckle" x="46.5" y="87.5" width="7" height="4.5" rx="1"/>
+        <g id="armL">
+          <rect class="skin" x="24" y="60" width="12" height="18" rx="6"/>
+          <g id="foreL">
+            <rect class="skin" x="25" y="73" width="10" height="15" rx="5"/>
+            <rect class="band" x="24.5" y="81" width="11" height="4" rx="1.5"/>
+            <circle class="skin" cx="30" cy="89" r="5"/>
+          </g>
+        </g>
+        <g id="armR">
+          <rect class="skin" x="64" y="60" width="12" height="18" rx="6"/>
+          <g id="foreR">
+            <rect class="skin" x="65" y="73" width="10" height="15" rx="5"/>
+            <rect class="band" x="64.5" y="81" width="11" height="4" rx="1.5"/>
+            <g id="whip">
+              <path class="handle" d="M70 90L73 98"/>
+              <path class="lash" d="M73 98C79 107 89 106 94 97"/>
+              <path class="crack" d="M96 96l1.5-5 1 4 4-2-3 4 4 2-5 0-1 4-1-4-4 1 3-3-3-3z"/>
+            </g>
+            <circle class="skin" cx="70" cy="89" r="5"/>
+          </g>
+        </g>
+        <g id="head">
+          <path class="hair" d="M27 36Q23 16 40 10Q60 4 72 17Q78 26 73 38Z"/>
+          <circle class="skin" cx="28" cy="38" r="4"/>
+          <circle class="skin" cx="72" cy="38" r="4"/>
+          <ellipse class="skin" cx="50" cy="35" rx="22" ry="21"/>
+          <ellipse class="blush" cx="37" cy="44.5" rx="3.6" ry="1.8"/>
+          <ellipse class="blush" cx="63" cy="44.5" rx="3.6" ry="1.8"/>
+          <g class="f f-normal">
+            <g class="eyes"><ellipse class="iris" cx="41" cy="39" rx="3.3" ry="4.4"/><ellipse class="iris" cx="59" cy="39" rx="3.3" ry="4.4"/>
+              <circle class="shine" cx="40" cy="37.3" r="1.2"/><circle class="shine" cx="58" cy="37.3" r="1.2"/></g>
+            <path class="brow" d="M36 32.5L45 31.5M55 31.5L64 32.5"/>
+            <path class="mouth" d="M46 48Q50 51 54 48"/>
+          </g>
+          <g class="f f-happy">
+            <path class="lid" d="M37 40Q41 35 45 40M55 40Q59 35 63 40"/>
+            <path class="brow" d="M36 31L45 30M55 30L64 31"/>
+            <path class="mouth-fill" d="M45 46Q50 53 55 46Z"/>
+          </g>
+          <g class="f f-sleepy">
+            <path class="lid" d="M37 39.5Q41 41.5 45 39.5M55 39.5Q59 41.5 63 39.5"/>
+            <path class="brow" d="M36 33L45 33M55 33L64 33"/>
+            <path class="mouth" d="M47.5 48L52.5 48"/>
+          </g>
+          <g class="f f-yawn">
+            <path class="lid" d="M37 39.5Q41 41.5 45 39.5M55 39.5Q59 41.5 63 39.5"/>
+            <path class="brow" d="M36 31.5L45 31M55 31L64 31.5"/>
+            <ellipse class="mouth-fill" cx="50" cy="48" rx="3" ry="4"/>
+          </g>
+          <g class="f f-worried">
+            <g class="eyes"><ellipse class="iris" cx="41" cy="39" rx="3.1" ry="4.4"/><ellipse class="iris" cx="59" cy="39" rx="3.1" ry="4.4"/>
+              <circle class="shine" cx="40" cy="37.3" r="1.2"/><circle class="shine" cx="58" cy="37.3" r="1.2"/></g>
+            <path class="brow" d="M36 31.5L45 29M55 29L64 31.5"/>
+            <path class="mouth" d="M45 48.5Q47.5 46.5 50 48.5Q52.5 50.5 55 48.5"/>
+          </g>
+          <g class="f f-angry">
+            <g class="eyes"><ellipse class="iris" cx="41" cy="40" rx="3.3" ry="3.2"/><ellipse class="iris" cx="59" cy="40" rx="3.3" ry="3.2"/>
+              <circle class="shine" cx="40" cy="39" r="1"/><circle class="shine" cx="58" cy="39" r="1"/></g>
+            <path class="brow" d="M36 30L45 33.5M55 33.5L64 30"/>
+            <rect class="teeth" x="44.5" y="45.5" width="11" height="5" rx="1.5"/><path class="line" d="M44.5 48H55.5"/>
+          </g>
+          <path class="hair" d="M27 33Q25 15 40 11L37 3 47 9 51 1 56 9 66 4 64 12Q76 17 73 33Q70 26 64 26L60 21 56 27 50 22 45 27 40 22 36 27Q30 27 27 33Z"/>
+          <path class="band" d="M28 27Q50 19 72 27L72.5 31Q50 23 27.5 31Z"/>
+          <g id="tails"><path class="band" d="M72 27L86 22 83 28Z"/><path class="band" d="M72 30L84 34 80 36Z"/></g>
+          <path class="fx sweat" d="M76 24Q79.5 30 76 32.5Q72.5 30 76 24Z"/>
+          <path class="fx anger" d="M63 13Q65.5 15.5 63 18M66.5 11Q69 13.5 72 12M65.5 20Q68 17.5 71 20M73.5 14.5Q71 17 73.5 19.5"/>
+          <text class="fx zzz" x="76" y="16">z</text><text class="fx zzz z2" x="83" y="9">z</text>
+        </g>
+      </g>
+    </g>
+  </svg>
   <button class="ping" id="ping"></button>
   <div class="note" id="note"></div>
 </footer>
@@ -112,14 +282,14 @@
   const uk = L.indexOf("uk") !== -1 && (L.indexOf("en") === -1 || L.indexOf("uk") < L.indexOf("en"));
   const T = uk ? {
     you: "ти", left: "до дедлайну", ping: "✅ Я сьогодні вчив Go", pinged: "✅ На сьогодні зараховано",
-    pinging: "Відмічаю…", web: "Відкрити веб-дашборд", theme: "Змінити тему", close: "Сховати віджет", now: "у", afk: "AFK",
+    pinging: "Відмічаю…", web: "Відкрити веб-дашборд", theme: "Змінити тему", settings: "Налаштування", close: "Сховати віджет", now: "у", afk: "AFK",
     offline: "клієнт офлайн", nostat: "немає клієнта", today: "Сьогодні в програмах", wait: "Підключаюсь…",
     noconn: "Немає зв'язку з сервером", config: "Налаштуй конфіг (меню трею → ⚙️)", demo: "🧪 Демо",
     st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "г", m: "хв",
     upd: "Вийшла нова версія клієнта — натисни, щоб завантажити", updReq: "Ця версія застаріла — онови клієнт"
   } : {
     you: "you", left: "until deadline", ping: "✅ I studied Go today", pinged: "✅ Counted for today",
-    pinging: "Saving…", web: "Open web dashboard", theme: "Change theme", close: "Hide widget", now: "in", afk: "AFK",
+    pinging: "Saving…", web: "Open web dashboard", theme: "Change theme", settings: "Settings", close: "Hide widget", now: "in", afk: "AFK",
     offline: "client offline", nostat: "no client", today: "Today in programs", wait: "Connecting…",
     noconn: "No connection to the server", config: "Fill in the config (tray menu → ⚙️)", demo: "🧪 Demo",
     st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "h", m: "m",
@@ -127,7 +297,7 @@
   };
   document.documentElement.lang = uk ? "uk" : "en";
   const $ = id => document.getElementById(id);
-  $("web").title = T.web; $("theme").title = T.theme; $("close").title = T.close; $("ping").textContent = T.ping; $("empty").textContent = T.wait;
+  $("web").title = T.web; $("theme").title = T.theme; $("settings").title = T.settings; $("close").title = T.close; $("ping").textContent = T.ping; $("empty").textContent = T.wait;
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const dur = sec => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `${h}${T.h} ${String(m).padStart(2, "0")}${T.m}` : `${m}${T.m}`; };
@@ -197,10 +367,46 @@
     btn.textContent = busy ? T.pinging : me && me.done_today ? T.pinged : T.ping;
     btn.classList.toggle("done", !!(me && me.done_today));
 
+    $("foot").classList.toggle("hero-on", !!data.character);
+    if (data.character) heroTick(data.demo || (me && me.state) || "pending", !!(me && me.done_today));
+
     let note = data.demo ? T.demo + " · " : "";
     if (data.today_total > 0) note += `${T.today}: ${dur(data.today_total)}` + (data.today_top ? ` · ${esc(data.today_top)}` : "");
     $("note").innerHTML = note;
   }
+
+  // ── character: the state sets the mood, random one-shot actions keep it alive ──
+  const hero = $("hero");
+  const ACTS = { safe: ["flex", "wave", "look"], pending: ["yawn", "look"], warning: ["whip", "look", "whip"], failed: ["whip", "stomp"] };
+  const ACT_MS = { flex: 1800, wave: 1700, look: 1600, yawn: 2200, whip: 1200, stomp: 1300, celebrate: 2400 };
+  const FACE = { safe: "normal", pending: "sleepy", warning: "worried", failed: "angry" };
+  const ACT_FACE = { flex: "happy", wave: "happy", celebrate: "happy", yawn: "yawn", stomp: "angry" };
+  let heroState = "", heroAct = "", heroActT = 0, heroNext = 0, wasDone = null;
+  const heroFace = () => { hero.dataset.face = ACT_FACE[heroAct] || FACE[heroState] || "normal"; };
+  const heroRandom = () => { const a = ACTS[heroState] || ACTS.safe; heroDo(a[Math.floor(Math.random() * a.length)]); };
+  function heroDo(act) {
+    clearTimeout(heroActT);
+    if (heroAct) hero.classList.remove("act-" + heroAct);
+    void hero.getBoundingClientRect(); // restart the animation if it is the same one
+    heroAct = act; hero.classList.add("act-" + act); heroFace();
+    heroActT = setTimeout(() => { hero.classList.remove("act-" + act); heroAct = ""; heroFace(); }, ACT_MS[act]);
+  }
+  function heroTick(state, done) {
+    if (state !== heroState) {
+      const first = !heroState;
+      hero.classList.remove("st-" + heroState); hero.classList.add("st-" + state);
+      heroState = state; heroFace();
+      if (!first && (state === "failed" || state === "warning")) heroDo(state === "failed" ? "stomp" : "whip");
+    }
+    if (wasDone === false && done) heroDo("celebrate");
+    wasDone = done;
+    const now = Date.now(), calm = state === "safe" || state === "pending";
+    if (!heroAct && now > heroNext) {
+      if (heroNext) heroRandom();
+      heroNext = now + (calm ? 9000 : 4500) + Math.random() * (calm ? 9000 : 4000);
+    }
+  }
+  hero.onclick = heroRandom;
 
   // called from Go when the theme changes (the initial one is baked into <html>)
   window.gsTheme = t => { document.documentElement.dataset.theme = t; };
@@ -211,6 +417,7 @@
   $("close").onclick = () => window.gsClose();
   $("web").onclick = () => window.gsOpenWeb();
   $("theme").onclick = () => window.gsNextTheme();
+  $("settings").onclick = () => window.gsSettings();
   $("upd").onclick = () => window.gsOpenUpdate();
   $("ping").onclick = () => { if (busy) return; busy = true; render(); window.gsPing(); };
   document.addEventListener("contextmenu", e => e.preventDefault());

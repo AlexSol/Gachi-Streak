@@ -58,6 +58,8 @@ type Config struct {
 	WidgetBackground WidgetBackground `json:"widget_background"`
 	// How much the theme color covers the background, 0 (none) … 1 (hidden).
 	WidgetBackgroundDim float64 `json:"widget_background_dim"`
+	// An animated chibi next to the ✅ button that reacts to the state.
+	WidgetCharacter bool `json:"widget_character"`
 
 	// Windows notification when an achievement unlocks.
 	AchievementNotifications bool `json:"achievement_notifications"`
@@ -84,12 +86,13 @@ func DefaultConfig(dataDir string) Config {
 		WidgetSnapPx:      20,
 		WidgetTheme:       WidgetThemeDefault,
 		WidgetBackground: WidgetBackground{ // bundled clips, unpacked on first start
-			Safe:    filepath.Join(dataDir, "widget", "safe"),
-			Pending: filepath.Join(dataDir, "widget", "pending"),
-			Warning: filepath.Join(dataDir, "widget", "warning"),
-			Failed:  filepath.Join(dataDir, "widget", "failed"),
+			Safe:    BackgroundDir(dataDir, "safe"),
+			Pending: BackgroundDir(dataDir, "pending"),
+			Warning: BackgroundDir(dataDir, "warning"),
+			Failed:  BackgroundDir(dataDir, "failed"),
 		},
 		WidgetBackgroundDim: 0.55,
+		WidgetCharacter:     true,
 
 		AchievementNotifications: true,
 	}

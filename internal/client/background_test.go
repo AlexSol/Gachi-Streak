@@ -97,3 +97,17 @@ func TestBundledWidgetBackgrounds(t *testing.T) {
 		}
 	}
 }
+
+func TestBackgroundLibrary(t *testing.T) {
+	dataDir := t.TempDir()
+	for _, st := range BackgroundStates {
+		InstallDefaults(assets.FS, "widget/"+st, BackgroundDir(dataDir, st), BackgroundExts())
+	}
+	bundled := BackgroundLibrary(dataDir)
+	custom := filepath.Join(t.TempDir(), "mine.webp")
+	os.WriteFile(custom, []byte("x"), 0o600)
+	got := BackgroundLibrary(dataDir, custom, bundled[0], BackgroundDir(dataDir, "safe"), "")
+	if len(bundled) < len(BackgroundStates) || len(got) != len(bundled)+1 || got[len(got)-1] != custom {
+		t.Fatalf("library: bundled %v, with extras %v", bundled, got)
+	}
+}

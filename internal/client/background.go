@@ -110,6 +110,38 @@ func ListBackgrounds(src string) []string {
 	return out
 }
 
+// BackgroundDir is where the bundled backgrounds of a state are unpacked
+// (and where the user can drop more).
+func BackgroundDir(dataDir, state string) string {
+	return filepath.Join(dataDir, "widget", state)
+}
+
+// BackgroundLibrary lists every file the settings gallery offers: the
+// per-state folders plus extra files (already chosen ones outside them).
+func BackgroundLibrary(dataDir string, extra ...string) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(p string) {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	for _, st := range BackgroundStates {
+		for _, p := range ListBackgrounds(BackgroundDir(dataDir, st)) {
+			add(p)
+		}
+	}
+	for _, e := range extra {
+		if st, err := os.Stat(e); err == nil && !st.IsDir() {
+			for _, p := range ListBackgrounds(e) {
+				add(p)
+			}
+		}
+	}
+	return out
+}
+
 // BackgroundPicker keeps the picked file while the state stays the same
 // and picks a new random one when the state (or its source) changes.
 type BackgroundPicker struct {

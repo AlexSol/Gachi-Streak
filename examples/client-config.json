@@ -26,5 +26,6 @@
     "failed": "C:\\Users\\YOU\\AppData\\Roaming\\GachiStreak\\widget\\failed"
   },
   "widget_background_dim": 0.55,
+  "widget_character": true,
   "achievement_notifications": true
 }

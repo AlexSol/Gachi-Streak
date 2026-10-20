@@ -21,6 +21,16 @@ import (
 //go:embed widget.html
 var widgetHTML string
 
+//go:embed themes.css
+var themesCSS string
+
+// pageHTML inlines the theme tokens and bakes the theme into <html>,
+// so a page never flashes the default theme.
+func pageHTML(page, theme string) string {
+	page = strings.Replace(page, "/*@themes*/", themesCSS, 1)
+	return strings.Replace(page, "<html ", "<html data-theme="+strconv.Quote(theme)+" ", 1)
+}
+
 // widgetData is what the widget page renders (window.gsUpdate).
 type widgetData struct {
 	Users      []widgetUser  `json:"users"`
@@ -30,6 +40,7 @@ type widgetData struct {
 	TodayTop   string        `json:"today_top,omitempty"`
 	Update     *widgetUpdate `json:"update,omitempty"` // newer client release
 	Background *widgetBg     `json:"background,omitempty"`
+	Character  bool          `json:"character"` // show the chibi next to the ✅ button
 }
 
 type widgetBg struct {
@@ -62,12 +73,13 @@ type widgetPos struct {
 // It runs on its own OS thread with its own message loop, separate from
 // the tray.
 type Widget struct {
-	dataDir  string
-	onPing   func()
-	onWeb    func()
-	onUpdate func()
-	onTheme  func()
-	onClose  func()
+	dataDir    string
+	onPing     func()
+	onWeb      func()
+	onUpdate   func()
+	onTheme    func()
+	onSettings func()
+	onClose    func()
 
 	mu    sync.Mutex
 	wv    webview2.WebView
@@ -78,8 +90,9 @@ type Widget struct {
 	last  []byte // last JSON, replayed when the page (re)loads
 }
 
-func newWidget(dataDir string, onPing, onWeb, onUpdate, onTheme, onClose func()) *Widget {
-	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onUpdate: onUpdate, onTheme: onTheme, onClose: onClose, mode: winapi.WidgetDesktop}
+func newWidget(dataDir string, onPing, onWeb, onUpdate, onTheme, onSettings, onClose func()) *Widget {
+	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onUpdate: onUpdate, onTheme: onTheme,
+		onSettings: onSettings, onClose: onClose, mode: winapi.WidgetDesktop}
 }
 
 func (w *Widget) posFile() string { return filepath.Join(w.dataDir, "widget.json") }
@@ -177,9 +190,9 @@ func (w *Widget) run(ready chan struct{}) {
 	_ = wv.Bind("gsOpenWeb", func() { go w.onWeb() })
 	_ = wv.Bind("gsOpenUpdate", func() { go w.onUpdate() })
 	_ = wv.Bind("gsNextTheme", func() { go w.onTheme() })
+	_ = wv.Bind("gsSettings", func() { go w.onSettings() })
 	_ = wv.Bind("gsClose", func() { wv.Destroy() })
-	// the theme goes straight into the markup, so the page never flashes the default one
-	wv.SetHtml(strings.Replace(widgetHTML, "<html ", "<html data-theme="+strconv.Quote(theme)+" ", 1))
+	wv.SetHtml(pageHTML(widgetHTML, theme))
 	close(ready)
 
 	wv.Run() // returns when the window is closed

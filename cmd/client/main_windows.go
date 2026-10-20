@@ -67,6 +67,8 @@ type app struct {
 	modeOver   *systray.MenuItem
 	themeItems []*systray.MenuItem // parallel to client.WidgetThemes
 	media      *client.MediaServer // widget backgrounds; nil if it failed to start
+	settings   *Settings
+	firstRun   bool // config.json was just created
 	bgPicker   client.BackgroundPicker
 	lastStatus *api.StatusResponse
 	localGit   client.LocalGit
@@ -115,9 +117,9 @@ func main() {
 	created := a.loadConfig()
 	switch {
 	case created:
-		_ = winapi.Open(a.cfgPath)
+		a.firstRun = true // onReady opens the settings window
 		go winapi.MessageBox(title, fmt.Sprintf(
-			"Створено конфіг:\n%s\n\nВпиши server_url і token (видає `gachi-server user add`) і збережи файл — програма підхопить зміни сама, перезапуск не потрібен.\n\nПоки що працює демо-режим у меню трею.",
+			"Створено конфіг:\n%s\n\nУ вікні налаштувань впиши адресу сервера й токен (видає `gachi-server user add`) і натисни «Зберегти» — перезапуск не потрібен.\n\nПоки що працює демо-режим у меню трею.",
 			a.cfgPath), winapi.MBInfo)
 	case a.cfgErr != nil:
 		go winapi.MessageBox(title, "Проблема з конфігом "+a.cfgPath+":\n\n"+a.cfgErr.Error()+
@@ -200,8 +202,9 @@ func (a *app) onReady() {
 		}(t.ID)
 	}
 	a.syncWidgetMenu()
+	settingsItem := systray.AddMenuItem("⚙️ Налаштування", "Сервер, віджет, фони, покарання, активність")
 	imagesItem := systray.AddMenuItem("📂 Папка з картинками", "")
-	configItem := systray.AddMenuItem("⚙️ Відкрити конфіг", "Зміни підхоплюються автоматично після збереження")
+	configItem := systray.AddMenuItem("📝 Відкрити config.json", "Ручне редагування; зміни підхоплюються автоматично після збереження")
 	reloadItem := systray.AddMenuItem("♻️ Перечитати конфіг", "")
 	a.autoItem = systray.AddMenuItemCheckbox("Запускати з Windows", "", winapi.AutostartEnabled(appName))
 	systray.AddSeparator()
@@ -230,7 +233,11 @@ func (a *app) onReady() {
 	} else {
 		a.media = m
 	}
-	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.nextWidgetTheme, a.widgetClosed)
+	a.settings = &Settings{a: a}
+	if a.firstRun {
+		a.settings.Show()
+	}
+	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.nextWidgetTheme, a.settings.Show, a.widgetClosed)
 	a.widget.SetSnap(a.cfg.WidgetSnapPx)
 	a.widget.SetTheme(a.cfg.NormalizedWidgetTheme())
 	if a.cfg.ShowWidget {
@@ -274,6 +281,8 @@ func (a *app) onReady() {
 				go a.snooze()
 			case <-imagesItem.ClickedCh:
 				_ = winapi.Open(filepath.Dir(a.cfg.FailedImagesDir))
+			case <-settingsItem.ClickedCh:
+				a.settings.Show()
 			case <-configItem.ClickedCh:
 				_ = winapi.Open(a.cfgPath)
 			case <-reloadItem.ClickedCh:
@@ -821,7 +830,7 @@ func (a *app) pushWidget(errKind string) {
 	if a.widget == nil {
 		return
 	}
-	d := widgetData{Error: errKind, Demo: string(a.engine.Demo), Users: []widgetUser{}}
+	d := widgetData{Error: errKind, Demo: string(a.engine.Demo), Users: []widgetUser{}, Character: a.cfg.WidgetCharacter}
 	if a.update != nil {
 		d.Update = &widgetUpdate{Version: a.update.Latest, Required: a.update.Required}
 	}
@@ -978,7 +987,7 @@ func installAssets(cfg client.Config, dataDir string) {
 		{"sounds/failed", filepath.Join(dataDir, "sounds", "failed"), client.SoundExts()},
 	}
 	for _, st := range client.BackgroundStates {
-		jobs = append(jobs, job{"widget/" + st, filepath.Join(dataDir, "widget", st), client.BackgroundExts()})
+		jobs = append(jobs, job{"widget/" + st, client.BackgroundDir(dataDir, st), client.BackgroundExts()})
 	}
 	for _, j := range jobs {
 		if j.dst == "" {
