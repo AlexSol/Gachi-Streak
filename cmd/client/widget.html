@@ -6,16 +6,40 @@
   :root {
     --bg: #110d0e; --panel: #181214; --text: #f1ece9; --muted: #a99c97; --line: #33252a;
     --accent: #ff8c1a; --safe: #2ecc71; --warn: #ff8c1a; --fail: #ff3b3b; --pending: #9a8f8b;
+    --glow: #3a1d10; --stripe: #111; --hover: #ffffff14; --on-accent: #1a0d02; --dot: #5a4f4c; --idle: #f1c40f;
+    --font: "Segoe UI", system-ui, sans-serif;
     --mono: "Cascadia Code", Consolas, ui-monospace, monospace;
+  }
+  /* themes: ids must match client.WidgetThemes */
+  [data-theme="dark"] {
+    --bg: #0f1115; --panel: #171a21; --text: #e8eaed; --muted: #9aa0a6; --line: #2a2f3a;
+    --accent: #4c8dff; --safe: #3ddc84; --warn: #ffb020; --fail: #ff5252; --pending: #8a9099;
+    --glow: #1a2740; --stripe: #0b0d12; --on-accent: #fff; --dot: #4a4f58;
+  }
+  [data-theme="light"] {
+    --bg: #f6f3f1; --panel: #fff; --text: #1d1a19; --muted: #6f6662; --line: #e3dbd7;
+    --accent: #e8740c; --safe: #1e9e57; --warn: #e8740c; --fail: #d92c2c; --pending: #8a817d;
+    --glow: #ffdcbd; --stripe: #2a2422; --hover: #0000000f; --on-accent: #fff; --dot: #c9c0bc; --idle: #d4a500;
+  }
+  [data-theme="neon"] {
+    --bg: #0d0716; --panel: #160d24; --text: #f5eaff; --muted: #a493b8; --line: #2f1d47;
+    --accent: #ff3ec8; --safe: #3dffb0; --warn: #ffb03d; --fail: #ff4d6d; --pending: #9a88b0;
+    --glow: #4a1060; --stripe: #0a0510; --on-accent: #1a0018; --dot: #4b3a60; --idle: #ffe66d;
+  }
+  [data-theme="matrix"] {
+    --bg: #050a06; --panel: #0a120c; --text: #c8ffd4; --muted: #5f9a6b; --line: #163020;
+    --accent: #39ff6a; --safe: #39ff6a; --warn: #ffd23f; --fail: #ff4b3e; --pending: #5f9a6b;
+    --glow: #0d2a14; --stripe: #020502; --on-accent: #021006; --dot: #24402c; --idle: #ffd23f;
+    --font: var(--mono);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; }
   body {
-    background: radial-gradient(400px 220px at 50% -20%, #3a1d10 0%, transparent 70%), var(--bg);
-    color: var(--text); font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(400px 220px at 50% -20%, var(--glow) 0%, transparent 70%), var(--bg);
+    color: var(--text); font: 13px/1.4 var(--font);
     display: flex; flex-direction: column;
   }
-  .tape { height: 5px; flex: none; background: repeating-linear-gradient(-45deg, var(--tape, var(--accent)) 0 9px, #111 9px 18px); }
+  .tape { height: 5px; flex: none; background: repeating-linear-gradient(-45deg, var(--tape, var(--accent)) 0 9px, var(--stripe) 9px 18px); }
   header {
     display: flex; align-items: center; gap: 6px; padding: 7px 8px 5px 12px; cursor: move; flex: none;
   }
@@ -25,12 +49,12 @@
     background: transparent; border: 0; color: var(--muted); cursor: pointer;
     width: 24px; height: 24px; border-radius: 6px; font-size: 13px; line-height: 24px; padding: 0;
   }
-  header button:hover { background: #ffffff14; color: var(--text); }
+  header button:hover { background: var(--hover); color: var(--text); }
   header .upd {
-    width: auto; padding: 0 8px; background: var(--accent); color: #1a0d02;
-    font: 700 11.5px/22px "Segoe UI", sans-serif; height: 22px; border-radius: 11px; white-space: nowrap;
+    width: auto; padding: 0 8px; background: var(--accent); color: var(--on-accent);
+    font: 700 11.5px/22px var(--font); height: 22px; border-radius: 11px; white-space: nowrap;
   }
-  header .upd:hover { background: #ffa347; color: #1a0d02; }
+  header .upd:hover { background: color-mix(in srgb, var(--accent), #fff 22%); color: var(--on-accent); }
   header .upd.req { background: var(--fail); color: #fff; }
   header .upd[hidden] { display: none; }
   main { flex: 1; overflow: hidden; padding: 2px 12px 0; display: flex; flex-direction: column; gap: 8px; }
@@ -48,13 +72,13 @@
   .left { font-family: var(--mono); color: var(--c, var(--pending)); font-weight: 700; }
   .presence { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .presence b { color: var(--text); font-weight: 600; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: #5a4f4c; flex: none; }
-  .presence.on .dot { background: var(--safe); box-shadow: 0 0 6px #2ecc7188; }
-  .presence.idle .dot { background: #f1c40f; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); flex: none; }
+  .presence.on .dot { background: var(--safe); box-shadow: 0 0 6px color-mix(in srgb, var(--safe) 55%, transparent); }
+  .presence.idle .dot { background: var(--idle); }
   footer { padding: 8px 12px 10px; flex: none; display: grid; gap: 6px; }
   .ping {
-    width: 100%; border: 0; border-radius: 9px; padding: 9px; font: 700 13px "Segoe UI", sans-serif;
-    background: var(--accent); color: #1a0d02; cursor: pointer;
+    width: 100%; border: 0; border-radius: 9px; padding: 9px; font: 700 13px var(--font);
+    background: var(--accent); color: var(--on-accent); cursor: pointer;
   }
   .ping.done { background: transparent; color: var(--safe); border: 1px solid var(--line); }
   .ping:disabled { opacity: .6; cursor: default; }
@@ -68,6 +92,7 @@
 <header id="drag">
   <div class="brand"><span>♂</span> Gachi Streak</div>
   <button class="upd" id="upd" hidden></button>
+  <button id="theme" title="">🎨</button>
   <button id="web" title="">🌐</button>
   <button id="close" title="">✕</button>
 </header>
@@ -81,14 +106,14 @@
   const uk = L.indexOf("uk") !== -1 && (L.indexOf("en") === -1 || L.indexOf("uk") < L.indexOf("en"));
   const T = uk ? {
     you: "ти", left: "до дедлайну", ping: "✅ Я сьогодні вчив Go", pinged: "✅ На сьогодні зараховано",
-    pinging: "Відмічаю…", web: "Відкрити веб-дашборд", close: "Сховати віджет", now: "у", afk: "AFK",
+    pinging: "Відмічаю…", web: "Відкрити веб-дашборд", theme: "Змінити тему", close: "Сховати віджет", now: "у", afk: "AFK",
     offline: "клієнт офлайн", nostat: "немає клієнта", today: "Сьогодні в програмах", wait: "Підключаюсь…",
     noconn: "Немає зв'язку з сервером", config: "Налаштуй конфіг (меню трею → ⚙️)", demo: "🧪 Демо",
     st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "г", m: "хв",
     upd: "Вийшла нова версія клієнта — натисни, щоб завантажити", updReq: "Ця версія застаріла — онови клієнт"
   } : {
     you: "you", left: "until deadline", ping: "✅ I studied Go today", pinged: "✅ Counted for today",
-    pinging: "Saving…", web: "Open web dashboard", close: "Hide widget", now: "in", afk: "AFK",
+    pinging: "Saving…", web: "Open web dashboard", theme: "Change theme", close: "Hide widget", now: "in", afk: "AFK",
     offline: "client offline", nostat: "no client", today: "Today in programs", wait: "Connecting…",
     noconn: "No connection to the server", config: "Fill in the config (tray menu → ⚙️)", demo: "🧪 Demo",
     st: { safe: "✅", pending: "⏳", warning: "⚠️", failed: "💀" }, h: "h", m: "m",
@@ -96,7 +121,7 @@
   };
   document.documentElement.lang = uk ? "uk" : "en";
   const $ = id => document.getElementById(id);
-  $("web").title = T.web; $("close").title = T.close; $("ping").textContent = T.ping; $("empty").textContent = T.wait;
+  $("web").title = T.web; $("theme").title = T.theme; $("close").title = T.close; $("ping").textContent = T.ping; $("empty").textContent = T.wait;
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const dur = sec => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `${h}${T.h} ${String(m).padStart(2, "0")}${T.m}` : `${m}${T.m}`; };
@@ -151,12 +176,15 @@
     $("note").innerHTML = note;
   }
 
+  // called from Go when the theme changes (the initial one is baked into <html>)
+  window.gsTheme = t => { document.documentElement.dataset.theme = t; };
   // called from Go on every poll
   window.gsUpdate = d => { data = d; busy = false; render(); };
 
   $("drag").addEventListener("mousedown", e => { if (e.button === 0 && e.target.tagName !== "BUTTON") window.gsDrag(); });
   $("close").onclick = () => window.gsClose();
   $("web").onclick = () => window.gsOpenWeb();
+  $("theme").onclick = () => window.gsNextTheme();
   $("upd").onclick = () => window.gsOpenUpdate();
   $("ping").onclick = () => { if (busy) return; busy = true; render(); window.gsPing(); };
   document.addEventListener("contextmenu", e => e.preventDefault());

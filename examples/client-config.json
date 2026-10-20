@@ -17,5 +17,6 @@
   "show_widget": true,
   "widget_mode": "desktop",
   "widget_snap_px": 20,
+  "widget_theme": "gachi",
   "achievement_notifications": true
 }

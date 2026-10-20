@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 
 	webview2 "github.com/jchv/go-webview2"
@@ -57,18 +59,20 @@ type Widget struct {
 	onPing   func()
 	onWeb    func()
 	onUpdate func()
+	onTheme  func()
 	onClose  func()
 
-	mu   sync.Mutex
-	wv   webview2.WebView
-	hwnd uintptr
-	mode winapi.WidgetMode
-	snap int    // edge snapping distance at 100% scale
-	last []byte // last JSON, replayed when the page (re)loads
+	mu    sync.Mutex
+	wv    webview2.WebView
+	hwnd  uintptr
+	mode  winapi.WidgetMode
+	snap  int    // edge snapping distance at 100% scale
+	theme string // client.WidgetThemes ID
+	last  []byte // last JSON, replayed when the page (re)loads
 }
 
-func newWidget(dataDir string, onPing, onWeb, onUpdate, onClose func()) *Widget {
-	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onUpdate: onUpdate, onClose: onClose, mode: winapi.WidgetDesktop}
+func newWidget(dataDir string, onPing, onWeb, onUpdate, onTheme, onClose func()) *Widget {
+	return &Widget{dataDir: dataDir, onPing: onPing, onWeb: onWeb, onUpdate: onUpdate, onTheme: onTheme, onClose: onClose, mode: winapi.WidgetDesktop}
 }
 
 func (w *Widget) posFile() string { return filepath.Join(w.dataDir, "widget.json") }
@@ -146,7 +150,7 @@ func (w *Widget) run(ready chan struct{}) {
 	}
 
 	w.mu.Lock()
-	mode, snap := w.mode, w.snap
+	mode, snap, theme := w.mode, w.snap, w.theme
 	w.wv, w.hwnd = wv, hwnd
 	w.mu.Unlock()
 
@@ -165,8 +169,10 @@ func (w *Widget) run(ready chan struct{}) {
 	_ = wv.Bind("gsPing", func() { go w.onPing() })
 	_ = wv.Bind("gsOpenWeb", func() { go w.onWeb() })
 	_ = wv.Bind("gsOpenUpdate", func() { go w.onUpdate() })
+	_ = wv.Bind("gsNextTheme", func() { go w.onTheme() })
 	_ = wv.Bind("gsClose", func() { wv.Destroy() })
-	wv.SetHtml(widgetHTML)
+	// the theme goes straight into the markup, so the page never flashes the default one
+	wv.SetHtml(strings.Replace(widgetHTML, "<html ", "<html data-theme="+strconv.Quote(theme)+" ", 1))
 	close(ready)
 
 	wv.Run() // returns when the window is closed
@@ -212,6 +218,17 @@ func (w *Widget) SetSnap(px int) {
 	w.mu.Unlock()
 	if hwnd != 0 {
 		winapi.SetWidgetSnap(hwnd, int32(float64(px)*winapi.SystemScale()))
+	}
+}
+
+// SetTheme switches the color theme live (id from client.WidgetThemes).
+func (w *Widget) SetTheme(id string) {
+	w.mu.Lock()
+	w.theme = id
+	wv := w.wv
+	w.mu.Unlock()
+	if wv != nil {
+		wv.Dispatch(func() { wv.Eval("window.gsTheme && window.gsTheme(" + strconv.Quote(id) + ")") })
 	}
 }
 

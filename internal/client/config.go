@@ -51,6 +51,8 @@ type Config struct {
 	WidgetMode string `json:"widget_mode"`
 	// Stick the widget to screen edges when dragged closer than this (px at 100% scale; 0 = off).
 	WidgetSnapPx int `json:"widget_snap_px"`
+	// Widget color theme: one of WidgetThemes (gachi by default).
+	WidgetTheme string `json:"widget_theme"`
 
 	// Windows notification when an achievement unlocks.
 	AchievementNotifications bool `json:"achievement_notifications"`
@@ -75,6 +77,7 @@ func DefaultConfig(dataDir string) Config {
 		ShowWidget:        true,
 		WidgetMode:        WidgetModeDesktop,
 		WidgetSnapPx:      20,
+		WidgetTheme:       WidgetThemeDefault,
 
 		AchievementNotifications: true,
 	}
@@ -92,6 +95,45 @@ func (c Config) NormalizedWidgetMode() string {
 		return WidgetModeOverlay
 	}
 	return WidgetModeDesktop
+}
+
+// WidgetTheme is a widget color theme; ID goes to config.json and the page.
+type WidgetTheme struct {
+	ID    string
+	Title string // tray menu label
+}
+
+// WidgetThemeDefault is the original orange-on-black look.
+const WidgetThemeDefault = "gachi"
+
+// WidgetThemes lists the themes in tray menu (and 🎨 cycling) order.
+// Each ID must have a matching [data-theme] block in widget.html.
+var WidgetThemes = []WidgetTheme{
+	{WidgetThemeDefault, "🔥 Gachi (помаранчева)"},
+	{"dark", "🌑 Темна"},
+	{"light", "☀️ Світла"},
+	{"neon", "🌆 Неон"},
+	{"matrix", "💚 Термінал"},
+}
+
+// NormalizedWidgetTheme returns a known theme ID (gachi by default).
+func (c Config) NormalizedWidgetTheme() string {
+	for _, t := range WidgetThemes {
+		if c.WidgetTheme == t.ID {
+			return t.ID
+		}
+	}
+	return WidgetThemeDefault
+}
+
+// NextWidgetTheme returns the theme after id, wrapping around.
+func NextWidgetTheme(id string) string {
+	for i, t := range WidgetThemes {
+		if t.ID == id {
+			return WidgetThemes[(i+1)%len(WidgetThemes)].ID
+		}
+	}
+	return WidgetThemeDefault
 }
 
 // SetConfigFields changes a few top-level keys in config.json, keeping

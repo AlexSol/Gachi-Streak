@@ -32,3 +32,19 @@ func TestSetConfigFieldsKeepsOtherKeys(t *testing.T) {
 		t.Fatal("broken config must stay untouched")
 	}
 }
+
+func TestWidgetTheme(t *testing.T) {
+	for in, want := range map[string]string{"": "gachi", "neon": "neon", "LIGHT": "gachi", "nope": "gachi"} {
+		if got := (Config{WidgetTheme: in}).NormalizedWidgetTheme(); got != want {
+			t.Errorf("NormalizedWidgetTheme(%q) = %q, want %q", in, got, want)
+		}
+	}
+	id, seen := WidgetThemeDefault, map[string]bool{}
+	for range WidgetThemes {
+		seen[id] = true
+		id = NextWidgetTheme(id)
+	}
+	if id != WidgetThemeDefault || len(seen) != len(WidgetThemes) {
+		t.Fatalf("cycling must visit every theme once and wrap: %v", seen)
+	}
+}

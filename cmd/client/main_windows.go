@@ -65,6 +65,7 @@ type app struct {
 	widgetItem *systray.MenuItem
 	modeDesk   *systray.MenuItem
 	modeOver   *systray.MenuItem
+	themeItems []*systray.MenuItem // parallel to client.WidgetThemes
 	lastStatus *api.StatusResponse
 	localGit   client.LocalGit
 	desk       *winapi.Desktop
@@ -184,6 +185,16 @@ func (a *app) onReady() {
 	modeMenu := systray.AddMenuItem("Режим віджета", "")
 	a.modeDesk = modeMenu.AddSubMenuItemCheckbox("🖥 На робочому столі (під вікнами)", "", false)
 	a.modeOver = modeMenu.AddSubMenuItemCheckbox("🎮 Поверх усіх вікон (як Discord)", "", false)
+	themeMenu := systray.AddMenuItem("🎨 Тема віджета", "Також кнопкою 🎨 на самому віджеті")
+	for _, t := range client.WidgetThemes {
+		it := themeMenu.AddSubMenuItemCheckbox(t.Title, "", false)
+		a.themeItems = append(a.themeItems, it)
+		go func(id string) {
+			for range it.ClickedCh {
+				a.setWidgetTheme(id)
+			}
+		}(t.ID)
+	}
 	a.syncWidgetMenu()
 	imagesItem := systray.AddMenuItem("📂 Папка з картинками", "")
 	configItem := systray.AddMenuItem("⚙️ Відкрити конфіг", "Зміни підхоплюються автоматично після збереження")
@@ -210,8 +221,9 @@ func (a *app) onReady() {
 
 	systray.SetOnTapped(func() { a.kick() }) // left click = refresh
 
-	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.widgetClosed)
+	a.widget = newWidget(a.dataDir, a.ping, a.openWeb, a.openUpdate, a.nextWidgetTheme, a.widgetClosed)
 	a.widget.SetSnap(a.cfg.WidgetSnapPx)
+	a.widget.SetTheme(a.cfg.NormalizedWidgetTheme())
 	if a.cfg.ShowWidget {
 		go a.widget.Show(winapi.WidgetMode(a.cfg.NormalizedWidgetMode()))
 	}
@@ -360,6 +372,7 @@ func (a *app) reload(force bool) {
 	a.updateGitItem()
 	if a.widget != nil { // apply widget settings edited by hand
 		a.widget.SetSnap(a.cfg.WidgetSnapPx)
+		a.widget.SetTheme(a.cfg.NormalizedWidgetTheme())
 		mode := winapi.WidgetMode(a.cfg.NormalizedWidgetMode())
 		switch open := a.widget.IsOpen(); {
 		case a.cfg.ShowWidget && !open:
@@ -843,6 +856,14 @@ func (a *app) syncWidgetMenu() {
 		a.modeDesk.Check()
 		a.modeOver.Uncheck()
 	}
+	theme := a.cfg.NormalizedWidgetTheme()
+	for i, it := range a.themeItems {
+		if client.WidgetThemes[i].ID == theme {
+			it.Check()
+		} else {
+			it.Uncheck()
+		}
+	}
 }
 
 func (a *app) toggleWidget() {
@@ -867,6 +888,18 @@ func (a *app) setWidgetMode(mode string) {
 		a.locked(func() { a.pushWidget("") })
 	}
 	a.syncWidgetMenu()
+}
+
+func (a *app) setWidgetTheme(id string) {
+	a.saveConfigFields(map[string]any{"widget_theme": id})
+	a.cfg.WidgetTheme = id
+	a.widget.SetTheme(id)
+	a.syncWidgetMenu()
+}
+
+// nextWidgetTheme is the widget's 🎨 button.
+func (a *app) nextWidgetTheme() {
+	a.setWidgetTheme(client.NextWidgetTheme(a.cfg.NormalizedWidgetTheme()))
 }
 
 // widgetClosed runs when the widget window goes away (✕ or tray toggle).
