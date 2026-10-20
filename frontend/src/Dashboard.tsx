@@ -5,7 +5,7 @@ import { AppBars, PresenceLine, WeekStats } from "./Activity";
 
 const POLL_MS = 30_000;
 
-function useNow(intervalMs = 1000) {
+export function useNow(intervalMs = 1000) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), intervalMs);

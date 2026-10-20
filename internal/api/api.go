@@ -163,3 +163,48 @@ type ProgressResponse struct {
 	Achievements []AchievementDef `json:"achievements"`
 	Users        []UserProgress   `json:"users"`
 }
+
+// LeaderRow is one participant of the leaderboard (GET /users).
+type LeaderRow struct {
+	Pos           int       `json:"pos"` // 1-based place in the current sort
+	Name          string    `json:"name"`
+	Streak        int       `json:"streak"`
+	Best          int       `json:"best"`
+	State         string    `json:"state"` // safe | pending | warning | failed
+	DoneToday     bool      `json:"done_today"`
+	Deadline      time.Time `json:"deadline"`
+	SecondsLeft   int64     `json:"seconds_left"`
+	LastActiveDay string    `json:"last_active_day"`
+	XP            int       `json:"xp"`
+	Rank          int       `json:"rank"` // RankDef.Level
+	RankName      string    `json:"rank_name"`
+	Presence      *Presence `json:"presence,omitempty"`
+	// Week is tracked seconds per day for the user's last 7 days, oldest first.
+	Week []int64 `json:"week"`
+}
+
+// LeaderCounts are the tab sizes after the search query is applied.
+type LeaderCounts struct {
+	All    int `json:"all"`
+	Online int `json:"online"`
+	AtRisk int `json:"at_risk"`
+}
+
+// UsersResponse is returned by GET /users.
+type UsersResponse struct {
+	Me     string       `json:"me"`
+	Query  string       `json:"q"`
+	Filter string       `json:"filter"` // all | online | risk
+	Sort   string       `json:"sort"`   // streak | best | xp | name | seen
+	Page   int          `json:"page"`   // 1-based, clamped to the last page
+	Limit  int          `json:"limit"`
+	Total  int          `json:"total"` // rows matching q and filter
+	Counts LeaderCounts `json:"counts"`
+	Users  []LeaderRow  `json:"users"`
+	// MeRow is the caller's own row in the current sort (ignores q and
+	// filter), so the page can pin it when it is not on the current page.
+	MeRow *LeaderRow `json:"me_row,omitempty"`
+	// AtRisk are the users whose deadline is closest and who have not
+	// counted today yet (state "warning"), nearest first, at most 4.
+	AtRisk []LeaderRow `json:"at_risk"`
+}

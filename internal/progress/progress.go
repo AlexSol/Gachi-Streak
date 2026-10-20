@@ -112,15 +112,35 @@ func Compute(name string, h History, partner *History) api.UserProgress {
 		up.Achievements = append(up.Achievements, st)
 	}
 	up.XPDays = XPPerDay * len(h.Days)
-	gross := up.XPDays + up.XPAchievements
-	up.XPPenalty = min(XPPerFailure*len(h.Failures), gross)
-	up.XP = gross - up.XPPenalty
+	up.XP, up.XPPenalty = XPFor(len(h.Days), up.XPAchievements, len(h.Failures))
 	r, next := RankFor(up.XP)
 	up.Rank = r.Level
 	if next != nil {
 		up.NextRankXP = next.MinXP
 	}
 	return up
+}
+
+// XPFor returns total XP and the penalty already taken from it. The
+// penalty never pushes XP below zero.
+func XPFor(activeDays, achievementXP, failures int) (xp, penalty int) {
+	gross := XPPerDay*activeDays + achievementXP
+	penalty = min(XPPerFailure*failures, gross)
+	return gross - penalty, penalty
+}
+
+// AchievementXP sums the XP of achievement IDs (unknown IDs count 0).
+func AchievementXP(ids []string) int {
+	sum := 0
+	for _, id := range ids {
+		for _, def := range Achievements {
+			if def.ID == id {
+				sum += def.XP
+				break
+			}
+		}
+	}
+	return sum
 }
 
 // RankFor returns the rank for xp and the next one (nil at the top).
