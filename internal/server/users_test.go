@@ -113,7 +113,7 @@ func TestUsersLeaderboard(t *testing.T) {
 		t.Fatalf("empty result must be a [] page 1: %+v", r)
 	}
 
-	for _, bad := range []string{"?sort=deadline", "?filter=friends", "?page=0", "?limit=x"} {
+	for _, bad := range []string{"?sort=deadline", "?filter=friends", "?scope=mine", "?page=0", "?limit=x"} {
 		if code := f.do(t, "GET", "/users"+bad, f.alex, "", nil); code != 400 {
 			t.Fatalf("%s: %d, want 400", bad, code)
 		}
@@ -121,6 +121,11 @@ func TestUsersLeaderboard(t *testing.T) {
 
 	// Next evening alex has not counted yet: within the warning window.
 	f.now = time.Date(2026, 10, 20, 21, 0, 0, 0, time.UTC)
+	r = f.users(t, f.sasha, "?filter=risk")
+	if names(r.Users) != "alex" || r.Counts.AtRisk != 1 || len(r.AtRisk) != 0 {
+		t.Fatalf("a stranger is not someone to push: %s %+v %s", names(r.Users), r.Counts, names(r.AtRisk))
+	}
+	befriend(t, f, f.sasha, "sasha", f.alex, "alex")
 	r = f.users(t, f.sasha, "?filter=risk")
 	if names(r.Users) != "alex" || r.Counts.AtRisk != 1 || names(r.AtRisk) != "alex" {
 		t.Fatalf("risk: %s %+v %s", names(r.Users), r.Counts, names(r.AtRisk))

@@ -119,7 +119,10 @@ export interface ProgressResponse {
   users: UserProgress[];
 }
 
+export type LeaderScope = "friends" | "all";
 export type LeaderFilter = "all" | "online" | "risk";
+/** How a user relates to me; "" = strangers. */
+export type Relation = "me" | "friend" | "incoming" | "outgoing" | "";
 export type LeaderSort = "streak" | "best" | "xp" | "name" | "seen";
 
 export interface LeaderRow {
@@ -139,9 +142,11 @@ export interface LeaderRow {
   presence?: Presence;
   /** Tracked seconds for the user's last 7 days, oldest first. */
   week: number[];
+  relation?: Relation;
 }
 
 export interface UsersQuery {
+  scope?: LeaderScope;
   q?: string;
   filter?: LeaderFilter;
   sort?: LeaderSort;
@@ -151,6 +156,9 @@ export interface UsersQuery {
 
 export interface UsersResponse {
   me: string;
+  scope: LeaderScope;
+  /** Scope sizes and my incoming requests; they ignore q and filter. */
+  scopes: { friends: number; all: number; incoming: number };
   q: string;
   filter: LeaderFilter;
   sort: LeaderSort;
@@ -161,8 +169,25 @@ export interface UsersResponse {
   users: LeaderRow[];
   /** My own row in the current sort, ignoring q and filter. */
   me_row?: LeaderRow;
-  /** Not counted yet and the deadline is close, nearest first. */
+  /** My friends (and me) not counted yet with the deadline close, nearest first. */
   at_risk: LeaderRow[];
+}
+
+export interface FriendRequest {
+  name: string;
+  streak: number;
+  best: number;
+  at: string; // RFC3339
+}
+
+export interface FriendRequestsResponse {
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+}
+
+export interface FriendResult {
+  name: string;
+  relation: Relation;
 }
 
 export class ApiError extends Error {
@@ -199,6 +224,14 @@ export const api = {
     for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== "") p.set(k, String(v));
     return call<UsersResponse>("GET", `/users?${p}`, undefined, signal);
   },
+  friendRequests: (signal?: AbortSignal) =>
+    call<FriendRequestsResponse>("GET", "/friends/requests", undefined, signal),
+  /** Ask someone; if they already asked me, this makes us friends. */
+  addFriend: (name: string) => call<FriendResult>("POST", "/friends/requests", { name }),
+  acceptFriend: (name: string) => call<FriendResult>("POST", `/friends/requests/${encodeURIComponent(name)}/accept`),
+  declineFriend: (name: string) => call<FriendResult>("POST", `/friends/requests/${encodeURIComponent(name)}/decline`),
+  cancelFriend: (name: string) => call<FriendResult>("DELETE", `/friends/requests/${encodeURIComponent(name)}`),
+  removeFriend: (name: string) => call<FriendResult>("DELETE", `/friends/${encodeURIComponent(name)}`),
   ping: (note: string) =>
     call<{ counted: boolean; user: UserStatus }>("POST", "/ping", { source: "manual", note }),
 };

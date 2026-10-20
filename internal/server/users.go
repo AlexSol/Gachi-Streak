@@ -21,8 +21,11 @@ const (
 	weekDays          = 7
 )
 
-// handleUsers returns the leaderboard: search (?q=), tab (?filter=),
-// sort (?sort=) and page (?page=, ?limit=).
+// handleUsers returns the leaderboard: whose rows (?scope=friends|all),
+// search (?q=), tab (?filter=), sort (?sort=) and page (?page=, ?limit=).
+// The "friends" scope is the caller and their accepted friends; places
+// are counted inside the scope. "Needs a push" (at_risk) is always taken
+// from the friends scope.
 //
 // Everything is computed in memory from a few grouped queries. That is
 // fine for thousands of users on SQLite; when it stops being fine, the
@@ -31,6 +34,14 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
 	me := userFrom(r)
 	qv := r.URL.Query()
 
+	scope := qv.Get("scope")
+	if scope == "" {
+		scope = "all"
+	}
+	if scope != "all" && scope != "friends" {
+		writeErr(w, http.StatusBadRequest, "scope must be friends or all")
+		return
+	}
 	filter := qv.Get("filter")
 	if filter == "" {
 		filter = "all"
@@ -72,15 +83,33 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := s.leaderRows(r.Context(), s.Now())
+	all, err := s.leaderRows(r.Context(), s.Now(), me)
 	if err != nil {
 		s.Log.Error("users", "err", err)
 		writeErr(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
+	resp := api.UsersResponse{Me: me.Name, Scope: scope, Query: q, Filter: filter, Sort: sortBy, Limit: limit, Users: []api.LeaderRow{}}
+	resp.Scopes.All = len(all)
+	var rows, risk []api.LeaderRow
+	for _, row := range all {
+		friendly := inFriendScope(row)
+		if friendly {
+			resp.Scopes.Friends++
+			if row.State == string(streak.StateWarning) {
+				risk = append(risk, row)
+			}
+		}
+		if row.Relation == string(store.RelIncoming) {
+			resp.Scopes.Incoming++
+		}
+		if scope == "all" || friendly {
+			rows = append(rows, row)
+		}
+	}
+
 	slices.SortStableFunc(rows, less)
-	resp := api.UsersResponse{Me: me.Name, Query: q, Filter: filter, Sort: sortBy, Limit: limit, Users: []api.LeaderRow{}}
 	for i := range rows {
 		rows[i].Pos = i + 1
 		if rows[i].Name == me.Name {
@@ -89,12 +118,8 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var risk []api.LeaderRow
-	for _, row := range rows {
-		if row.State == string(streak.StateWarning) {
-			risk = append(risk, row)
-		}
-	}
+	// Nearest deadline first, ties by name.
+	slices.SortStableFunc(risk, byName)
 	slices.SortStableFunc(risk, func(a, b api.LeaderRow) int { return cmpInt64(a.SecondsLeft, b.SecondsLeft) })
 	resp.AtRisk = risk[:min(len(risk), atRiskShown)]
 	if resp.AtRisk == nil {
@@ -128,6 +153,14 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
 	resp.Users = append(resp.Users, shown[from:min(from+limit, resp.Total)]...)
 	writeJSON(w, http.StatusOK, resp)
 }
+
+// inFriendScope reports whether a row belongs to the "friends" scope.
+func inFriendScope(row api.LeaderRow) bool {
+	return row.Relation == relMe || row.Relation == string(store.RelFriend)
+}
+
+// relMe marks the caller's own row (not a stored relation).
+const relMe = "me"
 
 // matcher returns a case-insensitive name filter. "@name" matches the
 // name exactly, anything else is a substring search; "" matches all.
@@ -194,8 +227,12 @@ func cmpInt64(a, b int64) int {
 // leaderRows builds one row per user. XP comes from stored data (counted
 // days, failures, unlocked achievements), which the deadline worker keeps
 // fresh every minute, so no per-user history is replayed here.
-func (s *Server) leaderRows(ctx context.Context, now time.Time) ([]api.LeaderRow, error) {
+func (s *Server) leaderRows(ctx context.Context, now time.Time, me store.User) ([]api.LeaderRow, error) {
 	users, err := s.Store.LeaderUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rels, err := s.Friends.Relations(ctx, me.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +273,10 @@ func (s *Server) leaderRows(ctx context.Context, now time.Time) ([]api.LeaderRow
 			RankName:      rank.Name,
 			Presence:      presenceView(u.Presence, now),
 			Week:          make([]int64, weekDays),
+			Relation:      string(rels[u.ID]),
+		}
+		if u.ID == me.ID {
+			row.Relation = relMe
 		}
 		// Same rule as /status: never show a stale streak for a failed user.
 		if ev.State == streak.StateFailed {

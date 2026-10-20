@@ -181,6 +181,17 @@ type LeaderRow struct {
 	Presence      *Presence `json:"presence,omitempty"`
 	// Week is tracked seconds per day for the user's last 7 days, oldest first.
 	Week []int64 `json:"week"`
+	// Relation is how this user relates to the caller:
+	// me | friend | incoming | outgoing, empty for strangers.
+	Relation string `json:"relation,omitempty"`
+}
+
+// LeaderScopes are the sizes of the leaderboard scopes and the number of
+// friend requests waiting for the caller. They ignore q and filter.
+type LeaderScopes struct {
+	Friends  int `json:"friends"`  // the caller and their friends
+	All      int `json:"all"`      // every participant
+	Incoming int `json:"incoming"` // pending requests sent to the caller
 }
 
 // LeaderCounts are the tab sizes after the search query is applied.
@@ -193,6 +204,8 @@ type LeaderCounts struct {
 // UsersResponse is returned by GET /users.
 type UsersResponse struct {
 	Me     string       `json:"me"`
+	Scope  string       `json:"scope"` // friends | all
+	Scopes LeaderScopes `json:"scopes"`
 	Query  string       `json:"q"`
 	Filter string       `json:"filter"` // all | online | risk
 	Sort   string       `json:"sort"`   // streak | best | xp | name | seen
@@ -204,7 +217,35 @@ type UsersResponse struct {
 	// MeRow is the caller's own row in the current sort (ignores q and
 	// filter), so the page can pin it when it is not on the current page.
 	MeRow *LeaderRow `json:"me_row,omitempty"`
-	// AtRisk are the users whose deadline is closest and who have not
-	// counted today yet (state "warning"), nearest first, at most 4.
+	// AtRisk are the caller's friends (and the caller) whose deadline is
+	// closest and who have not counted today yet (state "warning"),
+	// nearest first, at most 4. Same in both scopes.
 	AtRisk []LeaderRow `json:"at_risk"`
+}
+
+// FriendRequest is a pending friend request: the other person and when
+// it was sent.
+type FriendRequest struct {
+	Name   string    `json:"name"`
+	Streak int       `json:"streak"`
+	Best   int       `json:"best"`
+	At     time.Time `json:"at"`
+}
+
+// FriendRequestsResponse is returned by GET /friends/requests.
+type FriendRequestsResponse struct {
+	Incoming []FriendRequest `json:"incoming"` // sent to me, newest first
+	Outgoing []FriendRequest `json:"outgoing"` // sent by me, newest first
+}
+
+// FriendAddRequest is the body of POST /friends/requests.
+type FriendAddRequest struct {
+	Name string `json:"name"`
+}
+
+// FriendResponse is returned by the friend actions: the other user and
+// how they relate to the caller now (friend | outgoing | empty).
+type FriendResponse struct {
+	Name     string `json:"name"`
+	Relation string `json:"relation"`
 }

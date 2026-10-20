@@ -34,11 +34,16 @@ activities(id PK, user_id → users, day, source['manual'|'github'], note, creat
       INDEX(user_id, day)
 events(id PK, user_id → users, kind['warning'|'failed'], day, created_at)
       UNIQUE(user_id, kind, day)
+friendships(requester_id → users, addressee_id → users, status['pending'|'accepted'],
+      created_at, responded_at)
+      PK(requester_id, addressee_id), UNIQUE(min(a, b), max(a, b)), INDEX(addressee_id, status)
 ```
+
+- Дружба — один рядок на пару, хоч би хто надіслав запит. Відхилений чи скасований запит видаляється, тож його можна надіслати знову; зустрічний запит одразу робить друзями.
 
 - Токени зберігаються як SHA-256, сам токен показується один раз.
 - Час — RFC3339 UTC текстом (однаково для будь-якого драйвера).
-- SQL простий, перенесення на PostgreSQL: `AUTOINCREMENT` → `GENERATED ... AS IDENTITY`, `?` → `$n`.
+- SQL простий, перенесення на PostgreSQL: `AUTOINCREMENT` → `GENERATED ... AS IDENTITY`, `?` → `$n`, `min(a, b)` / `max(a, b)` в індексі → `LEAST` / `GREATEST`.
 
 ## Клієнт (`internal/client` + `internal/winapi`)
 
